@@ -1,4 +1,5 @@
 import requests
+from collections import Counter
 
 
 def getInfo(name):
@@ -51,14 +52,67 @@ def recommendationByShowsTheyWatched():
         if show == 's':
             break
         showsWatched.append(show)
-    
+
     # find info such as genres, studios and themes
     # store it in an array ig?
 
+    genres = []
+    studios = []
+    themes = []
+
+    # print(showsWatched)
+    
+    for show in showsWatched:
+        url = "https://api.jikan.moe/v4/anime/?q=" + str(show) 
+        response = requests.get(url)
+        data = response.json()
+
+        firstResult = data['data'][0]
+
+        # fetching the genres
+        genres1 = firstResult.get('genres', [])
+        for genre in genres1:
+            genres.append(genre.get('name'))
+
+        # fetching the studios
+        studios1 = firstResult.get('studios', [])
+        for studio in studios1:
+            studios.append(studio.get('name'))
+
+        # fetching the themes
+        themes1 = firstResult.get('themes', [])
+        for theme in themes1:
+            themes.append(theme.get('name'))
+        
+    genres.sort()
+    studios.sort()
+    themes.sort()
+
+    # print("Genres: ")
+    # print(genres)
+    # print("Studios: ")
+    # print(studios)
+    # print("Themes: ")
+    # print(themes)
+
+
+    # making dictionaries to the frequency of the entry to each entry
+    # for weightage when recommending shows
+
+    genresFrequency = dict(Counter(genres))
+    print(genresFrequency)
+
+    studiosFrequency = dict(Counter(studios))
+
+    themesFrequency = dict(Counter(themes))
+
+
+
+        
 
     
 
-    print(showsWatched)
+    
 
 recommendationByShowsTheyWatched()
 
