@@ -1,5 +1,5 @@
 import requests
-from collections import Counter
+from collections import Counter as count
 
 
 def getInfo(name):
@@ -99,12 +99,17 @@ def recommendationByShowsTheyWatched():
     # making dictionaries to the frequency of the entry to each entry
     # for weightage when recommending shows
 
-    genresFrequency = dict(Counter(genres))
+    genresFrequency = dict(count(genres))
+    print("Genres: ")
     print(genresFrequency)
 
-    studiosFrequency = dict(Counter(studios))
+    studiosFrequency = dict(count(studios))
+    print("Studios: ")
+    print(studiosFrequency)
 
-    themesFrequency = dict(Counter(themes))
+    themesFrequency = dict(count(themes))
+    print("Themes: ")
+    print(themesFrequency)
 
 
 
