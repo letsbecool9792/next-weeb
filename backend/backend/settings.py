@@ -11,22 +11,42 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import dotenv
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+
+# dotenv shit for python
+dotenv_file = os.path.join(BASE_DIR, ".env")
+if os.path.isfile(dotenv_file):
+    dotenv.load_dotenv(dotenv_file)
+
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-4x&13$o40d5w-^nlae48n%_0e-7qfzbjmfy8j-33q4d9hzip5_'
+SECRET_KEY = os.environ['SECRET_KEY']
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
 ALLOWED_HOSTS = []
 
+
+
+MAL_CLIENT_ID = os.environ['MAL_CLIENT_ID']
+MAL_CLIENT_SECRET = os.environ['MAL_CLIENT_SECRET']
+MAL_REDIRECT_URI = os.environ['MAL_REDIRECT_URI']
+
+
+
+# SESSION_ENGINE = 'django.contrib.sessions.backends.file'
+# SESSION_FILE_PATH = '/tmp/django_sessions'  # Adjust as needed
 
 # Application definition
 
@@ -42,10 +62,14 @@ INSTALLED_APPS = [
     'corsheaders',
 
     'api',
+
+    'oauth2_provider',
 ]
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware', 
+
+    'oauth2_provider.middleware.OAuth2TokenMiddleware',
 
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
