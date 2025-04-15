@@ -38,14 +38,14 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 
-
+# the mal stuff from the mal app thingy
 MAL_CLIENT_ID = os.environ['MAL_CLIENT_ID']
 MAL_CLIENT_SECRET = os.environ['MAL_CLIENT_SECRET']
 MAL_REDIRECT_URI = os.environ['MAL_REDIRECT_URI']
 
 
 
-# SESSION_ENGINE = 'django.contrib.sessions.backends.file'
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 # SESSION_FILE_PATH = '/tmp/django_sessions'  # Adjust as needed
 
 # Application definition

@@ -3,6 +3,10 @@ import base64, os
 from django.conf import settings
 from django.shortcuts import redirect
 from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
+from .models import UserProfile
+from django.contrib.auth.models import User
+from django.contrib.auth import login
 
 # OAuth URLs
 MAL_AUTH_URL = "https://myanimelist.net/v1/oauth2/authorize"
@@ -78,8 +82,50 @@ def mal_callback(request):
         token_json = response.json()
         access_token = token_json.get("access_token")
 
-        # Store access token in session
         request.session["mal_access_token"] = access_token
+
+        user_info_response = requests.get(
+            "https://api.myanimelist.net/v2/users/@me",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+
+        if user_info_response.status_code != 200:
+            return JsonResponse({"error": "Failed to fetch MAL user info"}, status = 400)
+        
+        mal_user = user_info_response.json()
+        mal_username = mal_user.get("name")
+
+        user, _ = User.objects.get_or_create(username=mal_username)
+        # if created:
+        #     user.set_unusable_password()
+        #     user.save()
+
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        profile.mal_access_token = access_token
+        profile.save()
+
+        login(request, user)
+
+        print(f"Is user authenticated in Django? {request.user.is_authenticated}")
+        print(f"Logged in as: {request.user.username}")
+
+
         return JsonResponse({"message": "Login successful", "access_token": access_token})
+    
 
     return JsonResponse({"error": "Failed to retrieve access token", "details": response.text}, status=400)
+
+
+def mal_user_profile(request):
+    access_token = request.session.get("mal_access_token")
+
+    if not access_token:
+        return JsonResponse({"error": "User not authenticated"}, status=401)
+    
+    headers = {"Authorization": f"Bearer {access_token}"}
+    response = requests.get("https://api.myanimelist.net/v2/users/@me", headers=headers)
+
+    if response.status_code == 200:
+        return JsonResponse(response.json())
+
+    return JsonResponse({"error": "Failed to fetch profile", "details": response.text}, status=400)
