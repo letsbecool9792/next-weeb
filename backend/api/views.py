@@ -1,12 +1,16 @@
 import requests
 import base64, os
+
 from django.conf import settings
 from django.shortcuts import redirect
 from django.http import JsonResponse
+
 from django.contrib.auth.decorators import login_required
-from .models import UserProfile
 from django.contrib.auth.models import User
 from django.contrib.auth import login
+
+from .models import AnimeEntry
+from .models import UserProfile
 
 # OAuth URLs
 MAL_AUTH_URL = "https://myanimelist.net/v1/oauth2/authorize"
@@ -129,3 +133,82 @@ def mal_user_profile(request):
         return JsonResponse(response.json())
 
     return JsonResponse({"error": "Failed to fetch profile", "details": response.text}, status=400)
+
+
+def mal_anime_list(request):
+    access_token = request.session.get("mal_access_token")
+
+    if not access_token:
+        return JsonResponse({"error": "User not authenticated"}, status=401)
+    
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    url = 'https://api.myanimelist.net/v2/users/@me/animelist'
+
+    params = {
+        "fields": "list_status",
+        "limit": 1000,
+        "offset": 0,
+    }
+
+    response = requests.get(url, headers = headers, params = params)
+
+    if response.status_code == 200:
+        return JsonResponse(response.json())
+    
+    else:
+        return JsonResponse({
+            "error": "Failed to fetch anime list",
+            "details": response.text
+        }, status = 400)
+
+
+def sync_anime_list(request):
+    access_token = request.session.get("mal_access_token")
+    if not access_token:
+        return JsonResponse({"error": "User not authenticated"}, status=401)
+
+    headers = {"Authorization": f"Bearer {access_token}"}
+    url = "https://api.myanimelist.net/v2/users/@me/animelist"
+    params = {"fields": "list_status", "limit": 1000}
+    response = requests.get(url, headers=headers, params=params)
+
+    if response.status_code != 200:
+        return JsonResponse({"error": "Failed to fetch anime list", "details": response.text}, status=400)
+
+    anime_list = response.json().get("data", [])
+
+    AnimeEntry.objects.filter(user=request.user).delete()
+
+    for item in anime_list:
+        anime = item["node"]
+        status = item["list_status"]
+        AnimeEntry.objects.create(
+            user=request.user,
+            mal_id=anime["id"],
+            title=anime["title"],
+            status=status.get("status", ""),
+            image_url=anime.get("main_picture", {}).get("medium"),
+            score=status.get("score"),
+            episodes_watched=status.get("num_episodes_watched"),
+            is_rewatching=status.get("is_rewatching", False),
+            start_date=status.get("start_date") or None,
+            finish_date=status.get("finish_date") or None,
+            last_updated=status.get("updated_at") or None
+        )
+
+    return JsonResponse({"message": "Anime list synced", "count": len(anime_list)})
+
+def get_cached_anime_list(request):
+    entries = AnimeEntry.objects.filter(user=request.user).values(
+        "title",
+        "image_url",
+        "status",
+        "score",
+        "episodes_watched",
+        "is_rewatching",
+        "start_date",
+        "finish_date",
+        "last_updated",
+    )
+    return JsonResponse(list(entries), safe=False)
