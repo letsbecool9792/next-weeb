@@ -1,8 +1,70 @@
 import { useState } from 'react';
 import { ArrowRight, ChevronRight, BarChart2, Filter, List, Zap, Award } from 'lucide-react';
+import Card from '../components/Card';
+import Footer from '../components/Footer';
+import HowItWorksCard from '../components/HowItWorksCard';
 
 const Landing = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+    const features = [
+        {
+            icon: <Zap className="text-white" />,
+            title: "Smart Recommendations",
+            description:
+            "Get personalized anime recommendations based on your watching history, favorite genres, and studio preferences.",
+        },
+        {
+            icon: <BarChart2 className="text-white" />,
+            title: "Taste Analyzer",
+            description: "Breaks down your MAL profile: genres, themes, studios, moods, and viewing patterns to understand your preferences."
+        },
+        {
+            icon: <List className="text-white" />,
+            title: "Custom Lists & Sorting",
+            description: "Build your own anime lists. Filter by score, studio, year, genre, and more to organize your collection."
+        },
+        {
+            icon: <Award className="text-white" />,
+            title: "Studio & Genre Explorers",
+            description: "See top shows by your favorite studios. Discover niche genres you never knew you'd love."
+        },
+        {
+            icon: <Filter className="text-white" />,
+            title: "Watchlist Boosting",
+            description: "Adds better suggestions to your Plan to Watch that fit your taste profile and viewing patterns."
+        },
+        {
+            icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>,
+            title: "Clean UI, No Ads",
+            description: "No bullshit. Just you, your weeb data, and the shows you love. A clean interface focused on anime."
+        }
+    ];
+
+    const steps = [
+        {
+          number: 1,
+          title: "Sign In",
+          description: "Log in with your MyAnimeList account to sync your anime list.",
+        },
+        {
+          number: 2,
+          title: "Analyze",
+          description: "We scan your list, genres, and studios to understand your taste.",
+        },
+        {
+          number: 3,
+          title: "Recommend",
+          description: "Boom. You get bangers tailored just for your style.",
+        },
+        {
+          number: 4,
+          title: "Discover More",
+          description: "No data selling. No spam. Just better anime suggestions.",
+        },
+    ];
 
     return (
     <div className="min-h-screen bg-gradient-to-b from-purple-900 to-indigo-900 text-white">
@@ -93,7 +155,6 @@ const Landing = () => {
         </section>
 
         {/* Problem & Solution */}
-        {/* Problem & Solution */}
         <section className="px-4 sm:px-6 lg:px-8 py-20 bg-purple-900 bg-opacity-50">
         <div className="max-w-7xl mx-auto">
             <div className="text-center mb-16">
@@ -110,15 +171,15 @@ const Landing = () => {
                 <h3 className="text-2xl font-bold mb-4">The Problem</h3>
                 <ul className="space-y-4">
                 <li className="flex items-start">
-                    <ChevronRight className="text-pink-400 mt-1 mr-2 flex-shrink-0" />
+                    <ChevronRight className="text-pink-400 mr-2 flex-shrink-0" />
                     <p>Tired of cookie-cutter recs that act like everyone’s got <span className="font-bold text-pink-300">the same taste</span>?</p>
                 </li>
                 <li className="flex items-start">
-                    <ChevronRight className="text-pink-400 mt-1 mr-2 flex-shrink-0" />
+                    <ChevronRight className="text-pink-400 mr-2 flex-shrink-0" />
                     <p>Sick of scrolling through <span className="font-bold text-pink-300">anime hell</span> just to find one show that doesn’t suck?</p>
                 </li>
                 <li className="flex items-start">
-                    <ChevronRight className="text-pink-400 mt-1 mr-2 flex-shrink-0" />
+                    <ChevronRight className="text-pink-400 mr-2 flex-shrink-0" />
                     <p>Wasting hours watching <span className="font-bold text-pink-300">mid</span>? Nah, that ain’t it.</p>
                 </li>
                 </ul>
@@ -128,15 +189,15 @@ const Landing = () => {
                 <h3 className="text-2xl font-bold mb-4">Our Solution</h3>
                 <ul className="space-y-4">
                 <li className="flex items-start">
-                    <ChevronRight className="text-pink-400 mt-1 mr-2 flex-shrink-0" />
+                    <ChevronRight className="text-pink-400 mr-2 flex-shrink-0" />
                     <p>NextWeeb uses your MAL history to recommend shows you'll <span className="font-bold text-pink-300">actually</span> want to watch.</p>
                 </li>
                 <li className="flex items-start">
-                    <ChevronRight className="text-pink-400 mt-1 mr-2 flex-shrink-0" />
+                    <ChevronRight className="text-pink-400 mr-2 flex-shrink-0" />
                     <p>Explore genres, studios, and themes tailored to <span className="font-bold text-pink-300">you</span>.</p>
                 </li>
                 <li className="flex items-start">
-                    <ChevronRight className="text-pink-400 mt-1 mr-2 flex-shrink-0" />
+                    <ChevronRight className="text-pink-400 mr-2 flex-shrink-0" />
                     <p>Be an <span className="font-bold text-pink-300">anime stat god</span> — sort, filter, dominate.</p>
                 </li>
                 </ul>
@@ -147,84 +208,25 @@ const Landing = () => {
 
         {/* Features Section */}
         <section id="features" className="px-4 sm:px-6 lg:px-8 py-20">
-        <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold">Core Features</h2>
-            <p className="mt-4 text-lg text-purple-200 max-w-3xl mx-auto">
-                Everything you need to supercharge your anime discovery experience.
-            </p>
-            </div>
-
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Feature 1 */}
-            <div className="bg-purple-800 bg-opacity-20 backdrop-blur-sm border border-purple-500 border-opacity-30 rounded-xl p-6 hover:bg-opacity-30 transition-all">
-                <div className="bg-gradient-to-r from-pink-500 to-purple-500 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-                <Zap className="text-white" />
+            <div className="max-w-7xl mx-auto">
+                <div className="text-center mb-16">
+                    <h2 className="text-3xl md:text-4xl font-bold">Core Features</h2>
+                    <p className="mt-4 text-lg text-purple-200 max-w-3xl mx-auto">
+                        Everything you need to supercharge your anime discovery experience.
+                    </p>
                 </div>
-                <h3 className="text-xl font-bold mb-2">Smart Recommendations</h3>
-                <p className="text-purple-200">
-                Get personalized anime recommendations based on your watching history, favorite genres, and studio preferences.
-                </p>
-            </div>
 
-            {/* Feature 2 */}
-            <div className="bg-purple-800 bg-opacity-20 backdrop-blur-sm border border-purple-500 border-opacity-30 rounded-xl p-6 hover:bg-opacity-30 transition-all">
-                <div className="bg-gradient-to-r from-pink-500 to-purple-500 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-                <BarChart2 className="text-white" />
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {features.map((card, index) => (
+                        <Card
+                            key={index}
+                            icon={card.icon}
+                            title={card.title}
+                            description={card.description}
+                        />
+                    ))}
                 </div>
-                <h3 className="text-xl font-bold mb-2">Taste Analyzer</h3>
-                <p className="text-purple-200">
-                Breaks down your MAL profile: genres, themes, studios, moods, and viewing patterns to understand your preferences.
-                </p>
             </div>
-
-            {/* Feature 3 */}
-            <div className="bg-purple-800 bg-opacity-20 backdrop-blur-sm border border-purple-500 border-opacity-30 rounded-xl p-6 hover:bg-opacity-30 transition-all">
-                <div className="bg-gradient-to-r from-pink-500 to-purple-500 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-                <List className="text-white" />
-                </div>
-                <h3 className="text-xl font-bold mb-2">Custom Lists & Sorting</h3>
-                <p className="text-purple-200">
-                Build your own anime lists. Filter by score, studio, year, genre, and more to organize your collection.
-                </p>
-            </div>
-
-            {/* Feature 4 */}
-            <div className="bg-purple-800 bg-opacity-20 backdrop-blur-sm border border-purple-500 border-opacity-30 rounded-xl p-6 hover:bg-opacity-30 transition-all">
-                <div className="bg-gradient-to-r from-pink-500 to-purple-500 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-                <Award className="text-white" />
-                </div>
-                <h3 className="text-xl font-bold mb-2">Studio & Genre Explorers</h3>
-                <p className="text-purple-200">
-                See top shows by your favorite studios. Discover niche genres you never knew you'd love.
-                </p>
-            </div>
-
-            {/* Feature 5 */}
-            <div className="bg-purple-800 bg-opacity-20 backdrop-blur-sm border border-purple-500 border-opacity-30 rounded-xl p-6 hover:bg-opacity-30 transition-all">
-                <div className="bg-gradient-to-r from-pink-500 to-purple-500 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-                <Filter className="text-white" />
-                </div>
-                <h3 className="text-xl font-bold mb-2">Watchlist Boosting</h3>
-                <p className="text-purple-200">
-                Adds better suggestions to your Plan to Watch that fit your taste profile and viewing patterns.
-                </p>
-            </div>
-
-            {/* Feature 6 */}
-            <div className="bg-purple-800 bg-opacity-20 backdrop-blur-sm border border-purple-500 border-opacity-30 rounded-xl p-6 hover:bg-opacity-30 transition-all">
-                <div className="bg-gradient-to-r from-pink-500 to-purple-500 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                </div>
-                <h3 className="text-xl font-bold mb-2">Clean UI, No Ads</h3>
-                <p className="text-purple-200">
-                No bullshit. Just you, your weeb data, and the shows you love. A clean interface focused on anime.
-                </p>
-            </div>
-            </div>
-        </div>
         </section>
 
         {/* How It Works */}
@@ -238,45 +240,14 @@ const Landing = () => {
             </div>
 
             <div className="grid md:grid-cols-4 gap-8">
-            <div className="bg-purple-800 bg-opacity-20 backdrop-blur-sm border border-purple-500 border-opacity-30 rounded-xl p-6 relative">
-                <div className="absolute -top-4 -left-4 bg-gradient-to-r from-pink-500 to-purple-500 w-8 h-8 rounded-full flex items-center justify-center font-bold">
-                1
-                </div>
-                <h3 className="text-xl font-bold mb-3 mt-2">Connect MAL</h3>
-                <p className="text-purple-200">
-                Connect your MyAnimeList account with a simple auth.
-                </p>
-            </div>
-
-            <div className="bg-purple-800 bg-opacity-20 backdrop-blur-sm border border-purple-500 border-opacity-30 rounded-xl p-6 relative">
-                <div className="absolute -top-4 -left-4 bg-gradient-to-r from-pink-500 to-purple-500 w-8 h-8 rounded-full flex items-center justify-center font-bold">
-                2
-                </div>
-                <h3 className="text-xl font-bold mb-3 mt-2">Data Analysis</h3>
-                <p className="text-purple-200">
-                We fetch your watched list & analyze your taste profile.
-                </p>
-            </div>
-
-            <div className="bg-purple-800 bg-opacity-20 backdrop-blur-sm border border-purple-500 border-opacity-30 rounded-xl p-6 relative">
-                <div className="absolute -top-4 -left-4 bg-gradient-to-r from-pink-500 to-purple-500 w-8 h-8 rounded-full flex items-center justify-center font-bold">
-                3
-                </div>
-                <h3 className="text-xl font-bold mb-3 mt-2">Get Insights</h3>
-                <p className="text-purple-200">
-                Get personalized suggestions, insights, and statistics.
-                </p>
-            </div>
-
-            <div className="bg-purple-800 bg-opacity-20 backdrop-blur-sm border border-purple-500 border-opacity-30 rounded-xl p-6 relative">
-                <div className="absolute -top-4 -left-4 bg-gradient-to-r from-pink-500 to-purple-500 w-8 h-8 rounded-full flex items-center justify-center font-bold">
-                4
-                </div>
-                <h3 className="text-xl font-bold mb-3 mt-2">Discover More</h3>
-                <p className="text-purple-200">
-                No data selling. No spam. Just better anime suggestions.
-                </p>
-            </div>
+                {steps.map((step) => (
+                    <HowItWorksCard
+                        key={step.number}
+                        number={step.number}
+                        title={step.title}
+                        description={step.description}
+                    />
+                ))}
             </div>
         </div>
         </section>
@@ -300,29 +271,7 @@ const Landing = () => {
         </section>
 
         {/* Footer */}
-        <footer className="px-4 sm:px-6 lg:px-8 py-12 bg-purple-900 bg-opacity-70">
-        <div className="max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="mb-6 md:mb-0">
-                <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-purple-400">
-                NextWeeb
-                </span>
-                <p className="mt-2 text-purple-300">Your Anime Journey, Supercharged.</p>
-            </div>
-            <div className="flex space-x-6">
-                <a href="#" className="text-purple-300 hover:text-white transition-colors">
-                GitHub
-                </a>
-                <a href="#" className="text-purple-300 hover:text-white transition-colors">
-                Privacy Policy
-                </a>
-                <a href="#" className="text-purple-300 hover:text-white transition-colors">
-                Contact
-                </a>
-            </div>
-            </div>
-        </div>
-        </footer>
+        <Footer />
     </div>
     );
 };

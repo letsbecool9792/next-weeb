@@ -1,1 +1,15 @@
 @import "tailwindcss";
+
+@layer components {
+    .card  {
+        @apply bg-purple-800/80 hover:bg-purple-800/30 backdrop-blur-sm border border-purple-500/80 rounded-xl p-6 transition-all;
+    }
+
+    .icon {
+        @apply bg-gradient-to-r from-pink-500 to-purple-500 w-12 h-12 rounded-full flex items-center justify-center mb-4
+    }
+
+    .number {
+        @apply absolute -top-4 -left-4 bg-gradient-to-r from-pink-500 to-purple-500 w-8 h-8 rounded-full flex items-center justify-center font-bold
+    }
+}
