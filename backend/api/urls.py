@@ -1,5 +1,6 @@
 from django.urls import path
-from .views import mal_login, mal_callback, mal_user_profile, mal_anime_list, sync_anime_list, get_cached_anime_list
+from .views import mal_login, mal_callback, mal_user_profile, mal_anime_list
+from .views import sync_anime_list, get_cached_anime_list, session_status, mal_logout
 
 urlpatterns = [
     # path('test/', test_api, name='test_api'),
@@ -9,4 +10,6 @@ urlpatterns = [
     path('animelist/', mal_anime_list, name = 'mal_anime_list'),
     path('sync-animelist/', sync_anime_list, name = 'sync_anime_list'),
     path('cached-animelist/', get_cached_anime_list, name = 'get_cached_anime_list'),
+    path('session-status/', session_status, name = 'session_status'),
+    path('logout/', mal_logout, name = 'logout'),
 ]

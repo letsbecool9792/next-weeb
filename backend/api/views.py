@@ -1,6 +1,11 @@
 import requests
 import base64, os
 
+import jwt
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+
 from django.conf import settings
 from django.shortcuts import redirect
 from django.http import JsonResponse
@@ -8,6 +13,11 @@ from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib.auth import login
+from django.contrib.auth import logout
+
+from django.views.decorators.csrf import csrf_exempt
+
+from django.shortcuts import redirect
 
 from .models import AnimeEntry
 from .models import UserProfile
@@ -20,6 +30,8 @@ MAL_TOKEN_URL = "https://myanimelist.net/v1/oauth2/token"
 CLIENT_ID = getattr(settings, "MAL_CLIENT_ID", None)
 CLIENT_SECRET = getattr(settings, "MAL_CLIENT_SECRET", None)
 REDIRECT_URI = getattr(settings, "MAL_REDIRECT_URI", None)
+
+FRONTEND_URL = "http://localhost:5173"
 
 def generate_code_verifier():
     """ Generate a secure random code_verifier """
@@ -100,9 +112,6 @@ def mal_callback(request):
         mal_username = mal_user.get("name")
 
         user, _ = User.objects.get_or_create(username=mal_username)
-        # if created:
-        #     user.set_unusable_password()
-        #     user.save()
 
         profile, _ = UserProfile.objects.get_or_create(user=user)
         profile.mal_access_token = access_token
@@ -114,12 +123,13 @@ def mal_callback(request):
         print(f"Logged in as: {request.user.username}")
 
 
-        return JsonResponse({"message": "Login successful", "access_token": access_token})
-    
+        # return JsonResponse({"message": "Login successful", "access_token": access_token})
+        return redirect(f"{FRONTEND_URL}/dashboard")  # Or whatever route you want to land on in React
 
     return JsonResponse({"error": "Failed to retrieve access token", "details": response.text}, status=400)
 
-
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def mal_user_profile(request):
     access_token = request.session.get("mal_access_token")
 
@@ -134,7 +144,8 @@ def mal_user_profile(request):
 
     return JsonResponse({"error": "Failed to fetch profile", "details": response.text}, status=400)
 
-
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def mal_anime_list(request):
     access_token = request.session.get("mal_access_token")
 
@@ -162,7 +173,8 @@ def mal_anime_list(request):
             "details": response.text
         }, status = 400)
 
-
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def sync_anime_list(request):
     access_token = request.session.get("mal_access_token")
     if not access_token:
@@ -199,6 +211,8 @@ def sync_anime_list(request):
 
     return JsonResponse({"message": "Anime list synced", "count": len(anime_list)})
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_cached_anime_list(request):
     entries = AnimeEntry.objects.filter(user=request.user).values(
         "title",
@@ -212,3 +226,18 @@ def get_cached_anime_list(request):
         "last_updated",
     )
     return JsonResponse(list(entries), safe=False)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def session_status(request):
+    return Response({
+        "is_authenticated": True,
+        "username": request.user.username,
+    })
+
+#@csrf_exempt
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def mal_logout(request):
+    logout(request)
+    return JsonResponse({"message": "Logout successful"})
