@@ -1,7 +1,9 @@
 import { Routes, Route } from "react-router-dom";
+
 import Landing from "./pages/Landing";
 import GetStarted from "./pages/auth/GetStarted";
-import Dashboard from "./pages/Dashboard";
+import AnimeList from "./pages/AnimeList";
+import Profile from "./pages/Profile";
 
 type AppRoutesProps = {
   isLoggedIn: boolean;
@@ -12,6 +14,7 @@ const AppRoutes = ({ isLoggedIn, setIsLoggedIn }: AppRoutesProps) => {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
+
       <Route
         path="/get-started"
         element={
@@ -21,14 +24,25 @@ const AppRoutes = ({ isLoggedIn, setIsLoggedIn }: AppRoutesProps) => {
           />
         }
       />
+
       <Route
-        path="/dashboard"
+        path="/animelist"
         element={
-          <Dashboard
+          <AnimeList
             isLoggedIn={isLoggedIn}
             setIsLoggedIn={setIsLoggedIn}
           />
         }
+      />
+
+      <Route
+        path="/profile"
+        element={
+          <Profile 
+            //isLoggedIn={isLoggedIn}
+            setIsLoggedIn={setIsLoggedIn} 
+        />
+      }
       />
     </Routes>
   );

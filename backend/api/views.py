@@ -128,50 +128,42 @@ def mal_callback(request):
 
     return JsonResponse({"error": "Failed to retrieve access token", "details": response.text}, status=400)
 
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def sync_mal_profile(request):
+    """ Fetch from MAL and store in UserProfile """
+    token = request.session.get("mal_access_token")
+    if not token:
+        return Response({"error": "Not authenticated"}, status=401)
+
+    headers = {"Authorization": f"Bearer {token}"}
+    r = requests.get("https://api.myanimelist.net/v2/users/@me", headers=headers)
+    if r.status_code != 200:
+        return Response({"error": "MAL error", "details": r.text}, status=400)
+
+    data = r.json()
+    prof = request.user.userprofile
+    prof.name = data.get("name")
+    prof.birthday = data.get("birthday")
+    prof.location = data.get("location")
+    prof.joined_at = data.get("joined_at")
+    prof.picture = data.get("picture") # or data.get("main_picture", {}).get("medium")
+    prof.save()
+
+    return Response({"message": "Profile synced"})
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def mal_user_profile(request):
-    access_token = request.session.get("mal_access_token")
-
-    if not access_token:
-        return JsonResponse({"error": "User not authenticated"}, status=401)
-    
-    headers = {"Authorization": f"Bearer {access_token}"}
-    response = requests.get("https://api.myanimelist.net/v2/users/@me", headers=headers)
-
-    if response.status_code == 200:
-        return JsonResponse(response.json())
-
-    return JsonResponse({"error": "Failed to fetch profile", "details": response.text}, status=400)
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def mal_anime_list(request):
-    access_token = request.session.get("mal_access_token")
-
-    if not access_token:
-        return JsonResponse({"error": "User not authenticated"}, status=401)
-    
-    headers = {"Authorization": f"Bearer {access_token}"}
-
-    url = 'https://api.myanimelist.net/v2/users/@me/animelist'
-
-    params = {
-        "fields": "list_status",
-        "limit": 1000,
-        "offset": 0,
-    }
-
-    response = requests.get(url, headers = headers, params = params)
-
-    if response.status_code == 200:
-        return JsonResponse(response.json())
-    
-    else:
-        return JsonResponse({
-            "error": "Failed to fetch anime list",
-            "details": response.text
-        }, status = 400)
+def cached_mal_profile(request):
+    """ Return the stored profile """
+    prof = request.user.userprofile
+    return Response({
+        "name": prof.name,
+        "birthday": prof.birthday,
+        "location": prof.location,
+        "joined_at": prof.joined_at,
+        "picture": prof.picture,
+    })
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
