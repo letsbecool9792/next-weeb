@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Funnel, RefreshCcw, ChevronsUp, ChevronDown, LayoutGrid, AlignJustify, Eye, Calendar, Star, Clock } from 'lucide-react';
+import { Funnel, ChevronsUp, ChevronDown, LayoutGrid, AlignJustify, Eye, Calendar, Star, Clock, RefreshCw } from 'lucide-react';
 
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -69,9 +69,9 @@ const AnimeList = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLogg
         setSyncing(true);
         const start = Date.now();
       
-        const res = await fetch('http://127.0.0.1:8000/api/sync-animelist/', {
-          method: 'POST',
-          credentials: 'include',
+        const res = await fetch('http://localhost:8000/api/sync-animelist/', {
+            method: 'GET',
+            credentials: 'include',
         });
         if (res.ok) {
           await loadAnime();
@@ -79,7 +79,7 @@ const AnimeList = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLogg
       
         const elapsed = Date.now() - start;
         if (elapsed < minDuration) {
-          await delay(minDuration - elapsed);
+            await delay(minDuration - elapsed);
         }
         setSyncing(false);
     };
@@ -89,18 +89,39 @@ const AnimeList = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLogg
     useEffect(() => {
         if (authChecked && isLoggedIn) {
             (async () => {
-                setSyncing(true);
-                    // hit the sync endpoint to populate the DB
-                    await fetch('http://localhost:8000/api/sync-animelist/', {
-                    method: 'GET',
-                    credentials: 'include',
+            setSyncing(true);
+        
+            // 1) Fetch cached data directly:
+            const cacheRes = await fetch('http://localhost:8000/api/cached-animelist/', {
+                method: 'GET',
+                credentials: 'include',
+            });
+            const cacheData: AnimeEntry[] = cacheRes.ok ? await cacheRes.json() : [];
+        
+            // 2) If cache was empty, sync from MAL:
+            if (cacheData.length === 0) {
+                await fetch('http://localhost:8000/api/sync-animelist/', {
+                method: 'GET',
+                credentials: 'include',
                 });
-                // now load from cache
-                await loadAnime();
-                setSyncing(false);
+                // 3) Re-fetch cache after sync:
+                const updatedRes = await fetch('http://localhost:8000/api/cached-animelist/', {
+                method: 'GET',
+                credentials: 'include',
+                });
+                const updatedData: AnimeEntry[] = updatedRes.ok ? await updatedRes.json() : [];
+                setAnimeList(updatedData);
+            } else {
+                // If cache wasn’t empty, just use it
+                setAnimeList(cacheData);
+            }
+        
+            setLoading(false);
+            setSyncing(false);
             })();
         }
     }, [authChecked, isLoggedIn]);
+      
   
     // If not logged in and auth checked, bounce to /
     useEffect(() => {
@@ -187,15 +208,12 @@ const AnimeList = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLogg
                                 className="btn-primary">
                                 {syncing ? (
                                     <>
-                                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
+                                        <RefreshCw className="h-4.5 w-4.5 mr-1 animate-spin" />
                                         Syncing...
                                     </>
                                 ) : (
                                     <>
-                                        <RefreshCcw className="h-4.5 w-4.5 mr-1" />
+                                        <RefreshCw className="h-4.5 w-4.5 mr-1" />
                                         Sync Library
                                     </>
                                 )}
