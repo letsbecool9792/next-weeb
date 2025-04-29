@@ -1,7 +1,6 @@
 import requests
 import base64, os
 
-import jwt
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -207,6 +206,7 @@ def sync_anime_list(request):
 @permission_classes([IsAuthenticated])
 def get_cached_anime_list(request):
     entries = AnimeEntry.objects.filter(user=request.user).values(
+        "mal_id",
         "title",
         "image_url",
         "status",
@@ -233,3 +233,28 @@ def session_status(request):
 def mal_logout(request):
     logout(request)
     return JsonResponse({"message": "Logout successful"})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def anime_detail(request, anime_id):
+    token = request.session.get("mal_access_token")
+    if not token:
+        return Response({'error': 'Not authenticated'}, status=401)
+
+    url = f'https://api.myanimelist.net/v2/anime/{anime_id}'
+    params = {
+      'fields': 'id,title,main_picture,alternative_titles,'
+                'start_date,end_date,synopsis,mean,rank,'
+                'popularity,num_list_users,num_scoring_users,'
+                'nsfw,created_at,updated_at,media_type,status,'
+                'genres,my_list_status,num_episodes,start_season,'
+                'broadcast,source,average_episode_duration,'
+                'rating,pictures,background,related_anime,'
+                'related_manga,recommendations,studios,statistics'
+    }
+    headers = {'Authorization': f'Bearer {token}'}
+    r = requests.get(url, headers=headers, params=params)
+    if r.status_code == 200:
+        return Response(r.json())
+    return Response({'error': 'MAL error', 'details': r.text}, status=r.status_code)

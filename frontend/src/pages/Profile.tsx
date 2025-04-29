@@ -56,29 +56,29 @@ const Profile = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
 
 	// Format date: MMM DD, YYYY
 	const formatDate = (dateString: string) => {
-	if (!dateString) return "Not set";
+		if (!dateString) return "Not set";
 
-	try {
-		const date = new Date(dateString);
-		const options: Intl.DateTimeFormatOptions = { 
-		month: 'short', 
-		day: 'numeric', 
-		year: 'numeric' 
-		};
-		return date.toLocaleDateString('en-US', options);
-	} catch (e) {
-		return "Invalid date";
-	}
+		try {
+			const date = new Date(dateString);
+			const options: Intl.DateTimeFormatOptions = { 
+			month: 'short', 
+			day: 'numeric', 
+			year: 'numeric' 
+			};
+			return date.toLocaleDateString('en-US', options);
+		} catch (e) {
+			return "Invalid date";
+		}
 	};
 
 	if (loading) {
-	return (
-		<div className="overlay-center">
-		<div className="overlay-box">
-			<p className="text-xl">Loading profile...</p>
-		</div>
-		</div>
-	);
+		return (
+			<div className="overlay-center">
+			<div className="overlay-box">
+				<p className="text-xl">Loading profile...</p>
+			</div>
+			</div>
+		);
 	}
 
 	return (

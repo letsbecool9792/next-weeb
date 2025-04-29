@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight, ChevronRight, BarChart2, Filter, List, Zap, Award } from 'lucide-react';
+import { ArrowRight, ChevronRight, BarChart2, Filter, List, Zap, Award, CircleCheck, Menu, X } from 'lucide-react';
 
 import Card from '../components/Card';
 import Footer from '../components/Footer';
@@ -36,9 +36,7 @@ const Landing = () => {
             description: "Adds better suggestions to your Plan to Watch that fit your taste profile and viewing patterns."
         },
         {
-            icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>,
+            icon: <CircleCheck className="text-white" />,
             title: "Clean UI, No Ads",
             description: "No bullshit. Just you, your weeb data, and the shows you love. A clean interface focused on anime."
         }
@@ -94,13 +92,9 @@ const Landing = () => {
                 className="text-white focus:outline-none"
             >
                 {isMenuOpen ? (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <X className="w-6 h-6" />
                 ) : (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
+                <Menu className="w-6 h-6" />
                 )}
             </button>
             </div>

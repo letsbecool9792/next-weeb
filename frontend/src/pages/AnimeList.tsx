@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Funnel, ChevronsUp, ChevronDown, LayoutGrid, AlignJustify, Eye, Calendar, Star, Clock, RefreshCw } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import LoadingScreen from '../components/LoadingScreen';
 
 type AnimeEntry = {
+    mal_id: number;
     title: string;
     image_url: string;
     status: string;
@@ -305,51 +307,57 @@ const AnimeList = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLogg
                 ) : viewMode === 'grid' ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {getFilteredAndSortedList().map((anime) => (
-                            <div key={anime.title} className="relative bg-purple-800/80 hover:bg-purple-800/30 backdrop-blur-sm border border-purple-500/80 rounded-xl overflow-hidden group transition-all hover:scale-105 duration-200">
-                                <div className="relative">
-                                    <div className="aspect-w-3 aspect-h-4">
-                                        <img 
-                                            src={anime.image_url} 
-                                            alt={anime.title} 
-                                            className="w-full h-64 object-cover"
-                                        />
-                                    </div>
-                                    <div className="absolute inset-0 bg-gradient-to-t from-purple-900 via-transparent to-transparent"></div>
-                                    
-                                    <div className={`absolute top-3 right-3 ${getStatusColor(anime.status)} text-white rounded-full px-3 py-1 text-xs font-medium`}>
-                                        {anime.status.replace(/_/g, ' ')}
-                                    </div>
-                                    
-                                    {anime.is_rewatching && (
-                                        <div className="absolute top-3 left-3 bg-gradient-to-r from-pink-500 to-purple-500 rounded-full px-3 py-1 text-xs font-medium">
-                                            Rewatching
+                            <Link
+                                key={anime.mal_id}
+                                to={`/anime/${anime.mal_id}`} 
+                                className="block"
+                            >
+                                <div key={anime.title} className="relative bg-purple-800/80 hover:bg-purple-800/30 backdrop-blur-sm border border-purple-500/80 rounded-xl overflow-hidden group transition-all hover:scale-105 duration-200">
+                                    <div className="relative">
+                                        <div className="aspect-w-3 aspect-h-4">
+                                            <img 
+                                                src={anime.image_url} 
+                                                alt={anime.title} 
+                                                className="w-full h-64 object-cover"
+                                            />
                                         </div>
-                                    )}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-purple-900 via-transparent to-transparent"></div>
+                                        
+                                        <div className={`absolute top-3 right-3 ${getStatusColor(anime.status)} text-white rounded-full px-3 py-1 text-xs font-medium`}>
+                                            {anime.status.replace(/_/g, ' ')}
+                                        </div>
+                                        
+                                        {anime.is_rewatching && (
+                                            <div className="absolute top-3 left-3 bg-gradient-to-r from-pink-500 to-purple-500 rounded-full px-3 py-1 text-xs font-medium">
+                                                Rewatching
+                                            </div>
+                                        )}
+                                        
+                                        <div className="absolute bottom-3 right-3 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold rounded-full w-10 h-10 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                            {anime.score}
+                                        </div>
+                                    </div>
                                     
-                                    <div className="absolute bottom-3 right-3 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold rounded-full w-10 h-10 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                                        {anime.score}
+                                    <div className="p-4">
+                                        <h3 className="text-lg font-bold line-clamp-2 mb-2 text-white">{anime.title}</h3>
+                                        
+                                        <div className="grid grid-cols-2 gap-2 text-sm text-purple-200">
+                                            <div className="flex items-center">
+                                                <Eye className="h-4 w-4 mr-1 text-pink-400" />
+                                                {anime.episodes_watched} episodes
+                                            </div>
+                                            <div className="flex items-center">
+                                                <Calendar className="h-4 w-4 mr-1 text-pink-400" />
+                                                {anime.start_date || 'N/A'}
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="mt-3 pt-3 border-t border-purple-700/50 text-xs text-purple-300 flex justify-between items-center">
+                                            <span>Updated: {new Date(anime.last_updated).toLocaleDateString()}</span>
+                                        </div>
                                     </div>
                                 </div>
-                                
-                                <div className="p-4">
-                                    <h3 className="text-lg font-bold line-clamp-2 mb-2 text-white">{anime.title}</h3>
-                                    
-                                    <div className="grid grid-cols-2 gap-2 text-sm text-purple-200">
-                                        <div className="flex items-center">
-                                            <Eye className="h-4 w-4 mr-1 text-pink-400" />
-                                            {anime.episodes_watched} episodes
-                                        </div>
-                                        <div className="flex items-center">
-                                            <Calendar className="h-4 w-4 mr-1 text-pink-400" />
-                                            {anime.start_date || 'N/A'}
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="mt-3 pt-3 border-t border-purple-700/50 text-xs text-purple-300 flex justify-between items-center">
-                                        <span>Updated: {new Date(anime.last_updated).toLocaleDateString()}</span>
-                                    </div>
-                                </div>
-                            </div>
+                            </Link>
                         ))}
                     </div>
                 ) : (
