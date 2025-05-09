@@ -5,6 +5,7 @@ import GetStarted from "./pages/auth/GetStarted";
 import AnimeList from "./pages/AnimeList";
 import Profile from "./pages/Profile";
 import AnimeDetail from "./pages/AnimeDetail";
+import SearchAnime from "./pages/SearchAnime";
 
 type AppRoutesProps = {
   isLoggedIn: boolean;
@@ -48,6 +49,13 @@ const AppRoutes = ({ isLoggedIn, setIsLoggedIn }: AppRoutesProps) => {
       <Route path="/anime/:anime_id" element={
         <AnimeDetail setIsLoggedIn={setIsLoggedIn} />
       }/>
+
+      <Route
+        path="/search"
+        element={
+          <SearchAnime setIsLoggedIn={setIsLoggedIn}/>
+        }
+      />
     </Routes>
   );
 };

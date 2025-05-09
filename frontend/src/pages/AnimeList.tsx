@@ -165,14 +165,18 @@ const AnimeList = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLogg
     // Loading and error states
     if (!authChecked) {
         return (
-            <LoadingScreen message="Checking authentication..." />
+            <div className="bg-gray-900">
+                <LoadingScreen message="Checking authentication..." />
+            </div>
         );
     }
 
     if (loading) {
         return (
-            <LoadingScreen message="Loading your anime collection…" 
-                                        subMessage="Hold tight while we prepare your otaku journey!" />
+            <div className="bg-gray-900">
+                <LoadingScreen message="Loading your anime collection…" 
+                                subMessage="Hold tight while we prepare your otaku journey!" />
+            </div>
         );
     }
 

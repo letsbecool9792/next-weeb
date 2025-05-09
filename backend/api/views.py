@@ -258,3 +258,29 @@ def anime_detail(request, anime_id):
     if r.status_code == 200:
         return Response(r.json())
     return Response({'error': 'MAL error', 'details': r.text}, status=r.status_code)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def search_anime(request):
+    token = request.session.get("mal_access_token")
+    if not token:
+        return Response({"error": "Not authenticated"}, status=401)
+
+    query = request.GET.get("q")
+    limit = request.GET.get("limit", 10)
+
+    if not query:
+        return Response({"error": "Missing search query"}, status=400)
+
+    url = "https://api.myanimelist.net/v2/anime"
+    headers = {"Authorization": f"Bearer {token}"}
+    params = {
+        "q": query,
+        "limit": limit
+    }
+
+    r = requests.get(url, headers=headers, params=params)
+    if r.status_code == 200:
+        return Response(r.json())
+    
+    return Response({"error": "MAL error", "details": r.text}, status=r.status_code)

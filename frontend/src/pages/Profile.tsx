@@ -73,7 +73,7 @@ const Profile = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
 
 	if (loading) {
 		return (
-			<div className="overlay-center">
+			<div className="overlay-center  bg-gray-900">
 			<div className="overlay-box">
 				<p className="text-xl">Loading profile...</p>
 			</div>

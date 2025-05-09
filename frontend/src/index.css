@@ -14,7 +14,7 @@
     }
 
     .overlay-center {
-        @apply flex h-screen items-center justify-center bg-gray-900;
+        @apply flex h-screen items-center justify-center;
     }
 
     .overlay-box {

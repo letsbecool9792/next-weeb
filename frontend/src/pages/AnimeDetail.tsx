@@ -67,11 +67,13 @@ const AnimeDetail = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
     }, [anime_id]);
 
     if (loading) return (
-        <LoadingScreen message="Loading Details..." />
+        <div className="bg-gray-900">
+            <LoadingScreen message="Loading Details..." />
+        </div>        
     );
 
     if (!detail) return (
-    <div className="overlay-center">
+    <div className="overlay-center  bg-gray-900">
         <div className="overlay-box">
         <p className="text-xl font-semibold">Anime not found.</p>
         <button className="btn-primary mt-4">Return to List</button>
@@ -87,7 +89,7 @@ const AnimeDetail = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
     };
 
     return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-purple-900/90 text-white">
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-fuchsia-950 text-white">
         <Header setIsLoggedIn={setIsLoggedIn} />
 
         {/* Hero Section with Backdrop */}
