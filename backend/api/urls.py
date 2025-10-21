@@ -1,9 +1,12 @@
 from django.urls import path
 from .views import mal_login, mal_callback, sync_mal_profile, cached_mal_profile
 from .views import sync_anime_list, get_cached_anime_list, session_status, mal_logout
-from .views import anime_detail, search_anime, get_stats_data
+from .views import anime_detail, search_anime, get_stats_data, health_check
 
 urlpatterns = [
+    # Health check
+    path('health/', health_check, name='health_check'),
+    
     # path('test/', test_api, name='test_api'),
     path('login/', mal_login, name = 'mal_login'),
     path('callback/', mal_callback, name = 'mal_callback'),

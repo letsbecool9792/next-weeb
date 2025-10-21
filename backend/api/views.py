@@ -21,6 +21,15 @@ from django.shortcuts import redirect
 from .models import AnimeEntry
 from .models import UserProfile
 
+# Health check endpoint
+@api_view(['GET'])
+def health_check(request):
+    return Response({
+        "status": "healthy",
+        "service": "next-weeb-api",
+        "message": "Server is running"
+    }, status=200)
+
 # OAuth URLs
 MAL_AUTH_URL = "https://myanimelist.net/v1/oauth2/authorize"
 MAL_TOKEN_URL = "https://myanimelist.net/v1/oauth2/token"
