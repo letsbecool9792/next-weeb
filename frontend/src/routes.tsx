@@ -7,6 +7,7 @@ import Profile from "./pages/Profile";
 import AnimeDetail from "./pages/AnimeDetail";
 import SearchAnime from "./pages/SearchAnime";
 import Stats from "./pages/Stats";
+import NotFound from "./pages/NotFound";
 
 type AppRoutesProps = {
 	isLoggedIn: boolean;
@@ -66,6 +67,12 @@ const AppRoutes = ({ isLoggedIn, setIsLoggedIn }: AppRoutesProps) => {
 			element={
 				<Stats setIsLoggedIn={setIsLoggedIn} />
 			} 
+		/>
+
+		{/* 404 Catch-all route */}
+		<Route 
+			path="*" 
+			element={<NotFound />} 
 		/>
 	</Routes>
 	);
