@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import mal_login, mal_callback, sync_mal_profile, cached_mal_profile
 from .views import sync_anime_list, get_cached_anime_list, session_status, mal_logout
-from .views import anime_detail, search_anime
+from .views import anime_detail, search_anime, get_stats_data
 
 urlpatterns = [
     # path('test/', test_api, name='test_api'),
@@ -16,6 +16,7 @@ urlpatterns = [
 
     path('anime/<int:anime_id>/', anime_detail, name='anime_detail'),
     path('search-anime/', search_anime, name='search_anime'),
+    path('stats-data/', get_stats_data, name='get_stats_data'),
 
     path('session-status/', session_status, name = 'session_status'),
 

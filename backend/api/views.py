@@ -284,3 +284,47 @@ def search_anime(request):
         return Response(r.json())
     
     return Response({"error": "MAL error", "details": r.text}, status=r.status_code)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_stats_data(request):
+    """
+    Fetches detailed anime data from MAL for stats calculations
+    """
+    token = request.session.get("mal_access_token")
+    if not token:
+        return Response({"error": "Not authenticated"}, status=401)
+
+    # Get user's anime list with detailed fields
+    headers = {"Authorization": f"Bearer {token}"}
+    url = "https://api.myanimelist.net/v2/users/@me/animelist"
+    params = {
+        "fields": "list_status,genres,studios,num_episodes,average_episode_duration,media_type",
+        "limit": 1000,
+        "status": "completed"  # Focus on completed anime for accurate stats
+    }
+    
+    response = requests.get(url, headers=headers, params=params)
+    
+    if response.status_code != 200:
+        return Response({"error": "Failed to fetch anime list", "details": response.text}, status=400)
+    
+    anime_data = response.json().get("data", [])
+    
+    # Process data for stats
+    stats_list = []
+    for item in anime_data:
+        anime = item["node"]
+        list_status = item.get("list_status", {})
+        
+        stats_list.append({
+            "title": anime.get("title"),
+            "score": list_status.get("score", 0),
+            "genres": [g["name"] for g in anime.get("genres", [])],
+            "studios": [s["name"] for s in anime.get("studios", [])],
+            "num_episodes": anime.get("num_episodes", 0),
+            "average_episode_duration": anime.get("average_episode_duration", 0),
+            "media_type": anime.get("media_type", ""),
+        })
+    
+    return Response(stats_list)
