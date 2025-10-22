@@ -88,19 +88,24 @@ MIDDLEWARE = [
 
 SESSION_COOKIE_SAMESITE = 'None'
 SESSION_COOKIE_SECURE = True    # required when samesite=None
+SESSION_COOKIE_DOMAIN = os.environ.get('SESSION_COOKIE_DOMAIN', None)  # Set to .onrender.com if needed
 CSRF_COOKIE_SAMESITE = 'None'
 CSRF_COOKIE_SECURE = True
+CSRF_TRUSTED_ORIGINS = [
+    "https://next-weeb.vercel.app",
+    "https://next-weeb.onrender.com",
+]
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # Allow React frontend to make requests
-    "http://localhost:5173", 
+    "http://localhost:5173",
+    "https://next-weeb.vercel.app",  # Production frontend
 ]
 
 # Add environment-based origins for production
-if not DEBUG:
-    FRONTEND_URL = os.environ.get('FRONTEND_URL', '')
-    if FRONTEND_URL:
-        CORS_ALLOWED_ORIGINS.append(FRONTEND_URL)
+FRONTEND_URL = os.environ.get('FRONTEND_URL', '')
+if FRONTEND_URL and FRONTEND_URL not in CORS_ALLOWED_ORIGINS:
+    CORS_ALLOWED_ORIGINS.append(FRONTEND_URL)
 
 CORS_ALLOW_CREDENTIALS = True
 
