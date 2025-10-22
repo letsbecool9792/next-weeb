@@ -37,6 +37,11 @@ DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
+# Add Render domain if in production
+RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
 
 # the mal stuff from the mal app thingy
 MAL_CLIENT_ID = os.environ['MAL_CLIENT_ID']
@@ -88,7 +93,7 @@ CSRF_COOKIE_SECURE = True
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # Allow React frontend to make requests
-    "http://localhost:5173",    
+    "http://localhost:5173", 
 ]
 
 # Add environment-based origins for production
