@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import LoadingScreen from '../components/LoadingScreen';
+import { API_URL } from '../config';
 
 type AnimeEntry = {
     mal_id: number;
@@ -33,7 +34,7 @@ const AnimeList = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLogg
     useEffect(() => {
         (async () => {
             try {
-                const res = await fetch('http://localhost:8000/api/session-status/', {
+                const res = await fetch(`${API_URL}/api/session-status/`, {
                 method: 'GET',
                 credentials: 'include',
             });
@@ -53,7 +54,7 @@ const AnimeList = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLogg
       
     // Anime list loader
     const loadAnime = async () => {
-        const res = await fetch('http://localhost:8000/api/cached-animelist/', {
+        const res = await fetch(`${API_URL}/api/cached-animelist/`, {
             method: 'GET',
             credentials: 'include',
         });
@@ -71,7 +72,7 @@ const AnimeList = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLogg
         setSyncing(true);
         const start = Date.now();
       
-        const res = await fetch('http://localhost:8000/api/sync-animelist/', {
+        const res = await fetch(`${API_URL}/api/sync-animelist/`, {
             method: 'GET',
             credentials: 'include',
         });
@@ -94,7 +95,7 @@ const AnimeList = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLogg
             setSyncing(true);
         
             // 1) Fetch cached data directly:
-            const cacheRes = await fetch('http://localhost:8000/api/cached-animelist/', {
+            const cacheRes = await fetch(`${API_URL}/api/cached-animelist/`, {
                 method: 'GET',
                 credentials: 'include',
             });
@@ -102,12 +103,12 @@ const AnimeList = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLogg
         
             // 2) If cache was empty, sync from MAL:
             if (cacheData.length === 0) {
-                await fetch('http://localhost:8000/api/sync-animelist/', {
+                await fetch(`${API_URL}/api/sync-animelist/`, {
                 method: 'GET',
                 credentials: 'include',
                 });
                 // 3) Re-fetch cache after sync:
-                const updatedRes = await fetch('http://localhost:8000/api/cached-animelist/', {
+                const updatedRes = await fetch(`${API_URL}/api/cached-animelist/`, {
                 method: 'GET',
                 credentials: 'include',
                 });

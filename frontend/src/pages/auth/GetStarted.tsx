@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ArrowRight, Shield, Zap, BarChart2, List } from 'lucide-react';
+import { API_URL } from '../../config';
 
 const GetStarted = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>>}) => {
     //const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -8,7 +9,7 @@ const GetStarted = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLog
     useEffect(() => {
         (async () => {
             try {
-            const res = await fetch('http://localhost:8000/api/session-status/', {
+            const res = await fetch(`${API_URL}/api/session-status/`, {
                 method: 'GET',
                 credentials: 'include',
             });
@@ -24,7 +25,7 @@ const GetStarted = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLog
 
     const handleMALLogin = () => {
         // Redirect to your Django backend's MAL OAuth endpoint
-        window.location.href = 'http://localhost:8000/api/login/';
+        window.location.href = `${API_URL}/api/login/`;
     };
 
     const goToDashboard = () => {

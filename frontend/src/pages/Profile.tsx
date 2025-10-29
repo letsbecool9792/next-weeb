@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { RefreshCw, Calendar, MapPin, Clock, User } from 'lucide-react';
 import Header from '../components/Header';
+import { API_URL } from '../config';
 
 type Profile = {
 	name: string;
@@ -17,7 +18,7 @@ const Profile = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
 
 	// Fetch cached profile
 	const loadProfile = async () => {
-		const res = await fetch('http://localhost:8000/api/cached-profile/', {
+		const res = await fetch(`${API_URL}/api/cached-profile/`, {
 			method: 'GET',
 			credentials: 'include',
 		});
@@ -35,7 +36,7 @@ const Profile = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
 		setSyncing(true);
 		const start = Date.now();
 
-		const res = await fetch('http://localhost:8000/api/sync-profile/', {
+		const res = await fetch(`${API_URL}/api/sync-profile/`, {
 			method: 'GET',
 			credentials: 'include',
 		});

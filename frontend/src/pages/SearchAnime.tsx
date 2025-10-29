@@ -4,6 +4,7 @@ import { Search, Loader2 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import LoadingScreen from '../components/LoadingScreen';
+import { API_URL } from '../config';
 
 type SearchResultNode = {
 	id: number;
@@ -30,7 +31,7 @@ const SearchAnime = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
 	try {
 		// 1) fetch search results
 		const res = await fetch(
-		`http://localhost:8000/api/search-anime/?q=${encodeURIComponent(query)}&limit=6`,
+		`${API_URL}/api/search-anime/?q=${encodeURIComponent(query)}&limit=6`,
 		{ method: 'GET', credentials: 'include' }
 		);
 		if (!res.ok) throw new Error(`Search HTTP ${res.status}`);
@@ -45,7 +46,7 @@ const SearchAnime = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
 		await Promise.all(
 			nodes.map(async (node) => {
 			const dRes = await fetch(
-				`http://localhost:8000/api/anime/${node.id}/`,
+				`${API_URL}/api/anime/${node.id}/`,
 				{ method: 'GET', credentials: 'include' }
 			);
 			if (!dRes.ok) throw new Error(`Detail HTTP ${dRes.status}`);

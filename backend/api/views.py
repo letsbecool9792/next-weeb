@@ -39,7 +39,8 @@ CLIENT_ID = getattr(settings, "MAL_CLIENT_ID", None)
 CLIENT_SECRET = getattr(settings, "MAL_CLIENT_SECRET", None)
 REDIRECT_URI = getattr(settings, "MAL_REDIRECT_URI", None)
 
-FRONTEND_URL = "http://localhost:5173"
+# Frontend URL - use environment variable or default to localhost
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
 
 def generate_code_verifier():
     """ Generate a secure random code_verifier """

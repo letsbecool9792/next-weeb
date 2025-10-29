@@ -1,6 +1,7 @@
 import { User } from 'lucide-react';
 import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
+import { API_URL } from '../config';
 
 const Header = ({setIsLoggedIn} : {setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>>}) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -12,7 +13,7 @@ const Header = ({setIsLoggedIn} : {setIsLoggedIn: React.Dispatch<React.SetStateA
     };
 
     const handleLogout = async () => {
-        const res = await fetch('http://localhost:8000/api/logout/', {
+        const res = await fetch(`${API_URL}/api/logout/`, {
           method: 'GET',
           credentials: 'include',
         });

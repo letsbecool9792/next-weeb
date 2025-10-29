@@ -4,6 +4,7 @@ import { Star, Clock, Calendar, BarChart2, Heart, Award, Film, Users, Check, Sun
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import LoadingScreen from '../components/LoadingScreen';
+import { API_URL } from '../config';
 
 type Detail = {
     id: number;
@@ -55,7 +56,7 @@ const AnimeDetail = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
 
     useEffect(() => {
     (async () => {
-        const res = await fetch(`http://localhost:8000/api/anime/${anime_id}/`, {
+        const res = await fetch(`${API_URL}/api/anime/${anime_id}/`, {
         method: 'GET',
         credentials: 'include',
         });
