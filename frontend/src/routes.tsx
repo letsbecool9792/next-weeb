@@ -9,6 +9,7 @@ import SearchAnime from "./pages/SearchAnime";
 import Stats from "./pages/Stats";
 import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/Dashboard";
+import Recommendations from "./pages/Recommendations";
 
 type AppRoutesProps = {
 	isLoggedIn: boolean;
@@ -67,6 +68,13 @@ const AppRoutes = ({ isLoggedIn, setIsLoggedIn }: AppRoutesProps) => {
 			path="/stats" 
 			element={
 				<Stats setIsLoggedIn={setIsLoggedIn} />
+			} 
+		/>
+
+		<Route 
+			path="/recommendations" 
+			element={
+				<Recommendations setIsLoggedIn={setIsLoggedIn} />
 			} 
 		/>
 

@@ -87,11 +87,13 @@ MIDDLEWARE = [
 ]
 
 SESSION_COOKIE_SAMESITE = 'None'
-SESSION_COOKIE_SECURE = True    # required when samesite=None
+SESSION_COOKIE_SECURE = not DEBUG  # Only require HTTPS in production
 SESSION_COOKIE_DOMAIN = os.environ.get('SESSION_COOKIE_DOMAIN', None)  # Set to .onrender.com if needed
 CSRF_COOKIE_SAMESITE = 'None'
-CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = not DEBUG  # Only require HTTPS in production
 CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",  # Local development
+    "http://localhost:3000",
     "https://next-weeb.vercel.app",
     "https://next-weeb.onrender.com",
 ]
@@ -189,3 +191,13 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Django REST Framework settings
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}

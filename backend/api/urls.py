@@ -2,6 +2,7 @@ from django.urls import path
 from .views import mal_login, mal_callback, sync_mal_profile, cached_mal_profile
 from .views import sync_anime_list, get_cached_anime_list, session_status, mal_logout
 from .views import anime_detail, search_anime, get_stats_data, health_check
+from .views import get_recommendations, ai_recommendation_chat
 
 urlpatterns = [
     # Health check
@@ -20,6 +21,10 @@ urlpatterns = [
     path('anime/<int:anime_id>/', anime_detail, name='anime_detail'),
     path('search-anime/', search_anime, name='search_anime'),
     path('stats-data/', get_stats_data, name='get_stats_data'),
+    
+    # Recommendations
+    path('recommendations/', get_recommendations, name='get_recommendations'),
+    path('ai-chat/', ai_recommendation_chat, name='ai_recommendation_chat'),
 
     path('session-status/', session_status, name = 'session_status'),
 

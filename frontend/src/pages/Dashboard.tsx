@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { RefreshCw, TrendingUp, BarChart2, Clock, Film, Star, ArrowRight, Play } from 'lucide-react';
+import { RefreshCw, TrendingUp, BarChart2, Clock, Film, Star, ArrowRight, Play, Search } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import LoadingScreen from '../components/LoadingScreen';
@@ -297,6 +297,17 @@ const Dashboard = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
                         <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
                         <div className="space-y-3">
                             <Link
+                                to="/recommendations"
+                                className="btn-primary w-full justify-start gap-3 text-left"
+                            >
+                                <TrendingUp size={20} />
+                                <div>
+                                    <p className="font-semibold">Get Recommendations</p>
+                                    <p className="text-sm opacity-70">AI-powered picks just for you</p>
+                                </div>
+                            </Link>
+
+                            <Link
                                 to="/animelist"
                                 className="btn-secondary w-full justify-start gap-3 text-left"
                             >
@@ -311,7 +322,7 @@ const Dashboard = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
                                 to="/search"
                                 className="btn-secondary w-full justify-start gap-3 text-left"
                             >
-                                <TrendingUp size={20} />
+                                <Search size={20} />
                                 <div>
                                     <p className="font-semibold">Search Anime</p>
                                     <p className="text-sm opacity-70">Discover new shows to watch</p>

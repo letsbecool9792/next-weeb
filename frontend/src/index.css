@@ -39,4 +39,36 @@
                 appearance-none focus:ring-2 focus:ring-pink-500 focus:border-transparent;
     }
 
+    .markdown-content {
+        @apply text-white;
+    }
+
+    .markdown-content p {
+        @apply my-2;
+    }
+
+    .markdown-content ul, .markdown-content ol {
+        @apply ml-4 my-2;
+    }
+
+    .markdown-content li {
+        @apply my-1;
+    }
+
+    .markdown-content strong {
+        @apply font-bold text-pink-300;
+    }
+
+    .markdown-content em {
+        @apply italic text-purple-300;
+    }
+
+    .markdown-content code {
+        @apply bg-purple-900/50 px-1 rounded text-pink-300;
+    }
+
+    .markdown-content h1, .markdown-content h2, .markdown-content h3 {
+        @apply font-bold text-pink-400 mt-3 mb-2;
+    }
+
 }
