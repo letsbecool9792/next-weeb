@@ -100,6 +100,7 @@ SESSION_COOKIE_SECURE = not DEBUG  # Only require HTTPS in production
 SESSION_COOKIE_DOMAIN = os.environ.get('SESSION_COOKIE_DOMAIN', None)  # Set to .onrender.com if needed
 CSRF_COOKIE_SAMESITE = 'Lax' if DEBUG else 'None'  # Lax for local HTTP, None for production HTTPS
 CSRF_COOKIE_SECURE = not DEBUG  # Only require HTTPS in production
+CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to read CSRF token
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",  # Local development
     "http://localhost:3000",

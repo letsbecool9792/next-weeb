@@ -1,12 +1,13 @@
 from django.urls import path
 from .views import mal_login, mal_callback, sync_mal_profile, cached_mal_profile
 from .views import sync_anime_list, get_cached_anime_list, session_status, mal_logout
-from .views import anime_detail, search_anime, get_stats_data, health_check
+from .views import anime_detail, search_anime, get_stats_data, health_check, get_csrf_token
 from .views import get_recommendations, ai_recommendation_chat
 
 urlpatterns = [
     # Health check
     path('health/', health_check, name='health_check'),
+    path('csrf-token/', get_csrf_token, name='get_csrf_token'),
     
     # path('test/', test_api, name='test_api'),
     path('login/', mal_login, name = 'mal_login'),

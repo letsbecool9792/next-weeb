@@ -7,8 +7,22 @@ import Footer from '../components/Footer';
 import LoadingScreen from '../components/LoadingScreen';
 import { API_URL } from '../config';
 
-// Helper function to get CSRF token from cookies
-const getCsrfToken = () => {
+// Helper function to get CSRF token from API (for production cross-origin)
+const getCsrfToken = async () => {
+    try {
+        const res = await fetch(`${API_URL}/api/csrf-token/`, {
+            method: 'GET',
+            credentials: 'include',
+        });
+        if (res.ok) {
+            const data = await res.json();
+            return data.csrfToken;
+        }
+    } catch (error) {
+        console.error('[CSRF] Failed to fetch token:', error);
+    }
+    
+    // Fallback: try reading from cookie (works in local dev)
     const name = 'csrftoken';
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -136,7 +150,7 @@ const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
                 ...(recommendations?.hidden_gems || [])
             ].slice(0, 10).map(a => ({ title: a.title }));
 
-            const csrfToken = getCsrfToken();
+            const csrfToken = await getCsrfToken();
             const headers: HeadersInit = {
                 'Content-Type': 'application/json',
             };

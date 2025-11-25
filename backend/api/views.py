@@ -36,6 +36,15 @@ def health_check(request):
         "message": "Server is running"
     }, status=200)
 
+# CSRF token endpoint for cross-origin requests
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_csrf_token(request):
+    from django.middleware.csrf import get_token
+    return Response({
+        "csrfToken": get_token(request)
+    })
+
 # OAuth URLs
 MAL_AUTH_URL = "https://myanimelist.net/v1/oauth2/authorize"
 MAL_TOKEN_URL = "https://myanimelist.net/v1/oauth2/token"
