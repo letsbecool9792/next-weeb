@@ -344,7 +344,7 @@ const AnimeList = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLogg
                                     </div>
                                     
                                     <div className="p-4">
-                                        <h3 className="text-lg font-bold line-clamp-2 mb-2 text-white">{anime.title}</h3>
+                                        <h3 className="text-lg font-bold line-clamp-2 mb-2 text-white h-14">{anime.title}</h3>
                                         
                                         <div className="grid grid-cols-2 gap-2 text-sm text-purple-200">
                                             <div className="flex items-center">

@@ -129,7 +129,7 @@ const Dashboard = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
     });
     const topGenres = Array.from(genreMap.entries())
         .sort((a, b) => b[1] - a[1])
-        .slice(0, 3)
+        .slice(0, 5)
         .map(([name]) => name);
 
     return (
@@ -298,7 +298,7 @@ const Dashboard = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
                         <div className="space-y-3">
                             <Link
                                 to="/recommendations"
-                                className="btn-primary w-full justify-start gap-3 text-left"
+                                className="btn-secondary w-full justify-start gap-3 text-left"
                             >
                                 <TrendingUp size={20} />
                                 <div>

@@ -137,8 +137,15 @@ def mal_callback(request):
 
         user, _ = User.objects.get_or_create(username=mal_username)
 
-        profile, _ = UserProfile.objects.get_or_create(user=user)
+        profile, created = UserProfile.objects.get_or_create(user=user)
         profile.mal_access_token = access_token
+        
+        # Store profile data on first login
+        profile.name = mal_user.get("name")
+        profile.birthday = mal_user.get("birthday")
+        profile.location = mal_user.get("location")
+        profile.joined_at = mal_user.get("joined_at")
+        profile.picture = mal_user.get("picture")
         profile.save()
 
         login(request, user)
