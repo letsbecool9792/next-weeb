@@ -138,13 +138,35 @@ const Landing = () => {
             </div>
             </div>
             <div className="md:w-1/2 relative">
-            <div className="bg-purple-700 bg-opacity-20 backdrop-blur-sm border border-purple-500 border-opacity-30 rounded-xl p-6 relative z-10">
-                <img src="/api/placeholder/500/300" alt="NextWeeb App Preview" className="rounded-lg shadow-lg" />
-                <div className="absolute -bottom-4 -right-4 bg-purple-600 px-4 py-2 rounded-lg shadow-lg">
+            <div className="relative h-80 flex items-center justify-center">
+                {/* Background gradient orbs */}
+                <div className="absolute w-48 h-48 bg-gradient-to-br from-pink-400 to-purple-600 rounded-full blur-3xl opacity-60 animate-pulse"></div>
+                <div className="absolute top-10 right-10 w-32 h-32 bg-gradient-to-br from-purple-400 to-indigo-600 rounded-full blur-2xl opacity-50 animate-pulse" style={{ animationDelay: '1s', animationDuration: '3s' }}></div>
+                <div className="absolute bottom-10 left-10 w-40 h-40 bg-gradient-to-br from-pink-500 to-purple-500 rounded-full blur-2xl opacity-50 animate-pulse" style={{ animationDelay: '2s', animationDuration: '4s' }}></div>
+                
+                {/* SVG Mockup */}
+                <div className="relative rounded-lg shadow-2xl">
+                <svg viewBox="0 0 400 300" className="w-full h-auto">
+                    {/* Dashboard header mockup */}
+                    <rect x="10" y="10" width="380" height="80" rx="10" className="fill-purple-500/20 stroke-purple-400/40" strokeWidth="1" />
+                    
+                    {/* Recommendations section */}
+                    <rect x="10" y="110" width="250" height="60" rx="10" className="fill-pink-500/20 stroke-pink-400/40" strokeWidth="1" />
+                    
+                    {/* Stats bar */}
+                    <rect x="10" y="190" width="320" height="40" rx="10" className="fill-indigo-500/20 stroke-indigo-400/40" strokeWidth="1" />
+                    
+                    {/* Accent circles */}
+                    <circle cx="30" cy="50" r="8" className="fill-pink-400/60" />
+                    <circle cx="30" cy="140" r="8" className="fill-purple-400/60" />
+                    <circle cx="30" cy="210" r="8" className="fill-indigo-400/60" />
+                </svg>
+                </div>
+                
+                <div className="absolute -bottom-4 -right-4 bg-gradient-to-r from-pink-500 to-purple-600 px-6 py-3 rounded-lg shadow-lg z-10">
                 <span className="font-medium">Your next favorite anime awaits</span>
                 </div>
             </div>
-            <div className="absolute -bottom-6 -right-6 w-full h-full bg-gradient-to-r from-pink-500 to-purple-500 rounded-xl -z-10 opacity-30 blur-md"></div>
             </div>
         </div>
         </section>

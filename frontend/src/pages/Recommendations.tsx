@@ -61,6 +61,7 @@ const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
     const [userInput, setUserInput] = useState('');
     const [chatLoading, setChatLoading] = useState(false);
+    const [userAnimeList, setUserAnimeList] = useState<any[]>([]);
     const chatEndRef = useRef<HTMLDivElement>(null);
 
     const loadRecommendations = async () => {
@@ -76,8 +77,28 @@ const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
         setRegenerating(false);
     };
 
+    const loadUserAnimeList = async () => {
+        const res = await fetch(`${API_URL}/api/cached-animelist/`, {
+            method: 'GET',
+            credentials: 'include',
+        });
+        if (res.ok) {
+            const data = await res.json();
+            console.log('[AI Chat] Fetched anime list:', data.length, 'total anime');
+            // Filter to completed anime with score >= 7 for context
+            const highRated = data.filter((anime: any) => 
+                anime.status === 'completed' && anime.score >= 7
+            );
+            console.log('[AI Chat] High rated anime:', highRated.length, 'anime');
+            setUserAnimeList(highRated);
+        } else {
+            console.error('[AI Chat] Failed to fetch anime list');
+        }
+    };
+
     useEffect(() => {
         loadRecommendations();
+        loadUserAnimeList();
     }, []);
 
     useEffect(() => {
@@ -99,14 +120,21 @@ const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
         setChatLoading(true);
 
         try {
-            // Prepare context for AI
-            const context = [
+            // Send ACTUAL watched anime as context, not recommendations!
+            const context = userAnimeList.slice(0, 10).map(anime => ({
+                title: anime.title,
+                score: anime.score
+            }));
+            
+            console.log('[AI Chat] Sending context:', context.length, 'anime');
+            console.log('[AI Chat] Context preview:', context.slice(0, 3));
+
+            // Send current recommendations as suggestions
+            const suggestions = [
                 ...(recommendations?.because_you_liked.flatMap(byl => byl.anime) || []),
                 ...(recommendations?.from_genres.anime || []),
                 ...(recommendations?.hidden_gems || [])
-            ].slice(0, 20);
-
-            const suggestions = context.map(a => ({ title: a.title }));
+            ].slice(0, 10).map(a => ({ title: a.title }));
 
             const csrfToken = getCsrfToken();
             const headers: HeadersInit = {

@@ -16,14 +16,14 @@ NextWeeb is a modern anime dashboard powered by the official MyAnimeList API. De
 - **Anime Detail Pages**  
   Dive into any anime’s full details, including synopsis, rating, status, and studio.
 
-- **Personalized Recommendations** *(coming soon)*  
+- **Personalized Recommendations** 
   Smart recommendations based on your watch history.
 
-- **List Management** *(coming soon)*  
-  Update your MAL list directly—mark episodes, change status, and more.
-
-- **Profile Insights & Visualizations** *(coming soon)*  
+- **Profile Insights & Visualizations** 
   See your favorite genres, studios, and anime stats in charts and graphs.
+
+  - **List Management** *(coming soon)*  
+  Update your MAL list directly—mark episodes, change status, and more.
 
 ---
 

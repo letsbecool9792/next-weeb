@@ -17,12 +17,21 @@ import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Load environment-specific .env file
+# Check if we're in production (Render sets RENDER_EXTERNAL_HOSTNAME)
+if os.environ.get('RENDER_EXTERNAL_HOSTNAME'):
+    env_file = os.path.join(BASE_DIR, ".env.production")
+else:
+    env_file = os.path.join(BASE_DIR, ".env.development")
 
-
-# dotenv shit for python
-dotenv_file = os.path.join(BASE_DIR, ".env")
-if os.path.isfile(dotenv_file):
-    dotenv.load_dotenv(dotenv_file)
+# Load the environment file
+if os.path.isfile(env_file):
+    dotenv.load_dotenv(env_file)
+else:
+    # Fallback to .env if specific env file doesn't exist
+    dotenv_file = os.path.join(BASE_DIR, ".env")
+    if os.path.isfile(dotenv_file):
+        dotenv.load_dotenv(dotenv_file)
 
 
 
@@ -86,10 +95,10 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-SESSION_COOKIE_SAMESITE = 'None'
+SESSION_COOKIE_SAMESITE = 'Lax' if DEBUG else 'None'  # Lax for local HTTP, None for production HTTPS
 SESSION_COOKIE_SECURE = not DEBUG  # Only require HTTPS in production
 SESSION_COOKIE_DOMAIN = os.environ.get('SESSION_COOKIE_DOMAIN', None)  # Set to .onrender.com if needed
-CSRF_COOKIE_SAMESITE = 'None'
+CSRF_COOKIE_SAMESITE = 'Lax' if DEBUG else 'None'  # Lax for local HTTP, None for production HTTPS
 CSRF_COOKIE_SECURE = not DEBUG  # Only require HTTPS in production
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",  # Local development
