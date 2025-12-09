@@ -1,0 +1,43 @@
+{
+  "Pattern 1: /anime with genre param": {
+    "status": "ERROR_400",
+    "error": {
+      "message": "invalid q",
+      "error": "bad_request"
+    }
+  },
+  "Pattern 2: /anime with genres param": {
+    "status": "ERROR_400",
+    "error": {
+      "message": "invalid q",
+      "error": "bad_request"
+    }
+  },
+  "Pattern 3: /anime with genre_id param": {
+    "status": "ERROR_400",
+    "error": {
+      "message": "invalid q",
+      "error": "bad_request"
+    }
+  },
+  "Pattern 4: /genre/{id}/anime": {
+    "status": "NOT_FOUND"
+  },
+  "Pattern 5: /anime/genre/{id}": {
+    "status": "NOT_FOUND"
+  },
+  "Pattern 6: /anime with filter[genre]": {
+    "status": "ERROR_400",
+    "error": {
+      "message": "invalid q",
+      "error": "bad_request"
+    }
+  },
+  "Pattern 7: /anime with nsfw and genre": {
+    "status": "ERROR_400",
+    "error": {
+      "message": "invalid q",
+      "error": "bad_request"
+    }
+  }
+}

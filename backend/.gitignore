@@ -11,3 +11,4 @@ media/
 *.pyo
 *.log
 .DS_Store
+debug_recommendations/
