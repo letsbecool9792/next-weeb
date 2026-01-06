@@ -59,8 +59,10 @@ MAL_REDIRECT_URI = os.environ['MAL_REDIRECT_URI']
 
 
 
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-# SESSION_FILE_PATH = '/tmp/django_sessions'  # Adjust as needed
+# Use signed cookie sessions for production (works across multiple instances)
+# Database sessions don't work reliably on Render with SQLite
+SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
+SESSION_COOKIE_HTTPONLY = True
 
 # Application definition
 
