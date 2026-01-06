@@ -10,13 +10,10 @@ const Footer = () => {
                     <p className="mt-2 text-purple-300">Your Anime Journey, Supercharged.</p>
                 </div>
                 <div className="flex space-x-6">
-                    <a href="#" className="text-purple-300 hover:text-white transition-colors">
+                    <a href="https://github.com/letsbecool9792/next-weeb" className="text-purple-300 hover:text-white transition-colors">
                     GitHub
                     </a>
-                    <a href="#" className="text-purple-300 hover:text-white transition-colors">
-                    Privacy Policy
-                    </a>
-                    <a href="#" className="text-purple-300 hover:text-white transition-colors">
+                    <a href="https://letsbecool.vercel.app" className="text-purple-300 hover:text-white transition-colors">
                     Contact
                     </a>
                 </div>

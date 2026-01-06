@@ -278,10 +278,10 @@ const Landing = () => {
                 Built by a weeb, for weebs. I'm a developer who loves anime and tech, and I created NextWeeb to solve the problem of finding anime that truly matches your unique taste.
             </p>
             <div className="mt-8">
-                <button className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 px-6 py-3 rounded-full font-medium flex items-center mx-auto">
+                <a href='/get-started' className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 px-6 py-3 rounded-full font-medium inline-flex items-center mx-auto">
                 Get Started Now
                 <ArrowRight className="ml-2 w-5 h-5" />
-                </button>
+                </a>
             </div>
             </div>
         </div>
