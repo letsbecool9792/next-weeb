@@ -114,7 +114,7 @@ const Header = ({setIsLoggedIn} : {setIsLoggedIn: React.Dispatch<React.SetStateA
             <a href="/profile" className="block hover:text-purple-300 transition-colors">
             Profile
             </a>
-            <a href="/" className="block hover:text-purple-300 transition-colors">
+            <a onClick={handleLogout} className="block hover:text-purple-300 transition-colors cursor-pointer">
             Logout
             </a>
         </div>
