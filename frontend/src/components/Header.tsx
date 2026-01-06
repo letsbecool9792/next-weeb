@@ -19,7 +19,7 @@ const Header = ({setIsLoggedIn} : {setIsLoggedIn: React.Dispatch<React.SetStateA
         });
         if (res.ok) {
           setIsLoggedIn(false);           // clear React state
-          window.location.href = '/get-started';  // send them to the correct page
+          window.location.href = '/';  // send them to landing page
         } else {
           console.error('Logout failed');
         }
@@ -72,7 +72,6 @@ const Header = ({setIsLoggedIn} : {setIsLoggedIn: React.Dispatch<React.SetStateA
                 Profile
                 </a>
                 <a onClick = {handleLogout} 
-                //href="/logout" 
                 className="block px-4 py-2 hover:bg-gray-700">
                 Logout
                 </a>
@@ -115,7 +114,7 @@ const Header = ({setIsLoggedIn} : {setIsLoggedIn: React.Dispatch<React.SetStateA
             <a href="/profile" className="block hover:text-purple-300 transition-colors">
             Profile
             </a>
-            <a href="/logout" className="block hover:text-purple-300 transition-colors">
+            <a href="/" className="block hover:text-purple-300 transition-colors">
             Logout
             </a>
         </div>
