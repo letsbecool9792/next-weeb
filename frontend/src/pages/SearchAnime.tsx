@@ -1,6 +1,7 @@
 import { useState } from 'react'; 
 import { Link } from 'react-router-dom';
 import { Search, Loader2 } from 'lucide-react';
+import { usePostHog } from 'posthog-js/react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import LoadingScreen from '../components/LoadingScreen';
@@ -23,6 +24,7 @@ const SearchAnime = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
 	const [results, setResults] = useState<SearchDetail[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [hasSearched, setHasSearched] = useState(false);
+	const posthog = usePostHog();
 
 	const handleSearch = async () => {
 	if (!query.trim()) return;
@@ -65,6 +67,12 @@ const SearchAnime = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
 		).filter(Boolean);
 
 		setResults(detailed);
+		
+		// Track anime search
+		posthog?.capture('anime_searched', {
+			query: query,
+			results_count: detailed.length,
+		});
 	} catch (err) {
 		console.error('Search + detail fetch failed:', err);
 		setResults([]);

@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Sparkles, TrendingUp, Star, Building2, Gem, MessageCircle, Send, Loader2, RefreshCw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { usePostHog } from 'posthog-js/react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import LoadingScreen from '../components/LoadingScreen';
@@ -77,6 +78,7 @@ const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
     const [chatLoading, setChatLoading] = useState(false);
     const [userAnimeList, setUserAnimeList] = useState<any[]>([]);
     const chatEndRef = useRef<HTMLDivElement>(null);
+    const posthog = usePostHog();
 
     const loadRecommendations = async () => {
         const res = await fetch(`${API_URL}/api/recommendations/`, {
@@ -86,6 +88,22 @@ const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
         if (res.ok) {
             const data = await res.json();
             setRecommendations(data);
+            
+            // Track recommendations generated
+            const totalRecs = 
+                (data.because_you_liked?.flatMap((byl: any) => byl.anime).length || 0) +
+                (data.from_genres?.anime?.length || 0) +
+                (data.from_studios?.anime?.length || 0) +
+                (data.hidden_gems?.length || 0);
+            
+            posthog?.capture('recommendations_generated', {
+                count: totalRecs,
+                because_you_liked_count: data.because_you_liked?.flatMap((byl: any) => byl.anime).length || 0,
+                from_genres_count: data.from_genres?.anime?.length || 0,
+                from_studios_count: data.from_studios?.anime?.length || 0,
+                hidden_gems_count: data.hidden_gems?.length || 0,
+                is_regenerate: regenerating,
+            });
         }
         setLoading(false);
         setRegenerating(false);
@@ -172,6 +190,12 @@ const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
             if (res.ok) {
                 const data = await res.json();
                 setChatMessages(prev => [...prev, { role: 'assistant', content: data.message }]);
+                
+                // Track AI chat interaction
+                posthog?.capture('ai_chat_message_sent', {
+                    message_length: userMessage.length,
+                    context_count: context.length,
+                });
             } else {
                 setChatMessages(prev => [...prev, { 
                     role: 'assistant', 

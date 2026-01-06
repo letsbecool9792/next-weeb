@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { ArrowRight, Shield, Zap, BarChart2, List } from 'lucide-react';
+import { usePostHog } from 'posthog-js/react';
 import { API_URL } from '../../config';
 
 const GetStarted = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>>}) => {
     //const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const posthog = usePostHog();
 
     useEffect(() => {
         (async () => {
@@ -13,7 +15,13 @@ const GetStarted = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLog
                 method: 'GET',
                 credentials: 'include',
             });
-            if (res.ok) setIsLoggedIn(true);
+            if (res.ok) {
+                setIsLoggedIn(true);
+                // Track successful login (returning user)
+                posthog?.capture('user_logged_in', {
+                    login_type: 'returning_session',
+                });
+            }
             } catch {
                 /* ignore */
             } finally {
@@ -24,6 +32,9 @@ const GetStarted = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLog
       
 
     const handleMALLogin = () => {
+        // Track MAL login button click
+        posthog?.capture('mal_login_clicked');
+        
         // Redirect to your Django backend's MAL OAuth endpoint
         window.location.href = `${API_URL}/api/login/`;
     };

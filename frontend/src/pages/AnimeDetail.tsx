@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Star, Clock, Calendar, BarChart2, Heart, Award, Film, Users, Check, Sun, Code, NotebookPen, CalendarPlus2, CalendarCheck } from 'lucide-react';
+import { usePostHog } from 'posthog-js/react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import LoadingScreen from '../components/LoadingScreen';
@@ -53,6 +54,7 @@ const AnimeDetail = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
     const { anime_id } = useParams<{ anime_id: string }>();
     const [detail, setDetail] = useState<Detail | null>(null);
     const [loading, setLoading] = useState(true);
+    const posthog = usePostHog();
 
     useEffect(() => {
     (async () => {
@@ -61,7 +63,15 @@ const AnimeDetail = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
         credentials: 'include',
         });
         if (res.ok) {
-        setDetail(await res.json());
+        const data = await res.json();
+        setDetail(data);
+        
+        // Track anime detail view
+        posthog?.capture('anime_detail_viewed', {
+            anime_id: data.id,
+            anime_title: data.title,
+            anime_score: data.mean,
+        });
         }
         setLoading(false);
     })();

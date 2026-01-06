@@ -3,6 +3,7 @@ import base64, os
 from google import genai
 from google.genai import types
 from collections import defaultdict
+import json
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -11,7 +12,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from django.conf import settings
 from django.shortcuts import redirect
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
@@ -1184,3 +1185,53 @@ Respond in 2-3 short sentences. Be direct and helpful."""
             "message": error_message,
             "suggestions": suggested_titles
         })
+
+
+# PostHog reverse proxy to bypass ad blockers
+@csrf_exempt
+@api_view(['POST', 'GET'])
+@permission_classes([AllowAny])
+def posthog_proxy(request, path=''):
+    """Proxy PostHog requests through our backend to bypass ad blockers"""
+    posthog_host = 'https://us.i.posthog.com'
+    
+    # Build the full URL with the path from the URL parameter
+    url = f"{posthog_host}/{path}"
+    
+    # Forward query parameters
+    query_string = request.META.get('QUERY_STRING', '')
+    if query_string:
+        url += '?' + query_string
+    
+    try:
+        if request.method == 'POST':
+            response = requests.post(
+                url,
+                data=request.body,
+                headers={
+                    'Content-Type': request.headers.get('Content-Type', 'application/json'),
+                    'User-Agent': request.headers.get('User-Agent', ''),
+                },
+                timeout=10
+            )
+        else:
+            response = requests.get(
+                url,
+                headers={
+                    'User-Agent': request.headers.get('User-Agent', ''),
+                },
+                timeout=10
+            )
+        
+        return HttpResponse(
+            response.content,
+            status=response.status_code,
+            content_type=response.headers.get('Content-Type', 'application/json')
+        )
+    except Exception as e:
+        print(f"[PostHog Proxy Error] {e}")
+        return HttpResponse(
+            json.dumps({'error': str(e)}),
+            status=500,
+            content_type='application/json'
+        )
