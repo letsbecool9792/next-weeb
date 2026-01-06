@@ -1189,8 +1189,6 @@ Respond in 2-3 short sentences. Be direct and helpful."""
 
 # PostHog reverse proxy to bypass ad blockers
 @csrf_exempt
-@api_view(['POST', 'GET'])
-@permission_classes([AllowAny])
 def posthog_proxy(request, path=''):
     """Proxy PostHog requests through our backend to bypass ad blockers"""
     posthog_host = 'https://us.i.posthog.com'
@@ -1203,31 +1201,43 @@ def posthog_proxy(request, path=''):
     if query_string:
         url += '?' + query_string
     
+    print(f"[PostHog Proxy] {request.method} {url}")
+    
     try:
+        headers = {
+            'User-Agent': request.META.get('HTTP_USER_AGENT', 'Mozilla/5.0'),
+        }
+        
         if request.method == 'POST':
+            headers['Content-Type'] = request.META.get('CONTENT_TYPE', 'application/json')
             response = requests.post(
                 url,
                 data=request.body,
-                headers={
-                    'Content-Type': request.headers.get('Content-Type', 'application/json'),
-                    'User-Agent': request.headers.get('User-Agent', ''),
-                },
+                headers=headers,
                 timeout=10
             )
         else:
             response = requests.get(
                 url,
-                headers={
-                    'User-Agent': request.headers.get('User-Agent', ''),
-                },
+                headers=headers,
                 timeout=10
             )
         
-        return HttpResponse(
+        print(f"[PostHog Proxy] Response: {response.status_code}")
+        
+        # Return the response from PostHog
+        django_response = HttpResponse(
             response.content,
             status=response.status_code,
-            content_type=response.headers.get('Content-Type', 'application/json')
         )
+        
+        # Copy important headers
+        for header in ['Content-Type', 'Content-Encoding', 'Cache-Control']:
+            if header in response.headers:
+                django_response[header] = response.headers[header]
+        
+        return django_response
+        
     except Exception as e:
         print(f"[PostHog Proxy Error] {e}")
         return HttpResponse(
