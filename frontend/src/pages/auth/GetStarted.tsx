@@ -16,11 +16,14 @@ const GetStarted = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLog
                 credentials: 'include',
             });
             if (res.ok) {
-                setIsLoggedIn(true);
-                // Track successful login (returning user)
-                posthog?.capture('user_logged_in', {
-                    login_type: 'returning_session',
-                });
+                const data = await res.json();
+                if (data.is_authenticated) {
+                    setIsLoggedIn(true);
+                    // Track successful login (returning user)
+                    posthog?.capture('user_logged_in', {
+                        login_type: 'returning_session',
+                    });
+                }
             }
             } catch {
                 /* ignore */

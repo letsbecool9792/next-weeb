@@ -59,10 +59,10 @@ MAL_REDIRECT_URI = os.environ['MAL_REDIRECT_URI']
 
 
 
-# Use signed cookie sessions for production (works across multiple instances)
-# Database sessions don't work reliably on Render with SQLite
+# Use signed cookie sessions (works across multiple instances, no DB needed)
 SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
 SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_NAME = 'nw_sessionid'  # Changed from default to invalidate old sessions
 
 # Application definition
 
@@ -97,9 +97,9 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-SESSION_COOKIE_SAMESITE = 'Lax' if DEBUG else 'None'  # Lax for local HTTP, None for production HTTPS
-SESSION_COOKIE_SECURE = not DEBUG  # Only require HTTPS in production
-SESSION_COOKIE_DOMAIN = os.environ.get('SESSION_COOKIE_DOMAIN', None)  # Set to .onrender.com if needed
+SESSION_COOKIE_SAMESITE = 'Lax'  # Lax works for localhost development (same-site OAuth + cross-origin GET)
+SESSION_COOKIE_SECURE = False  # False for local HTTP
+SESSION_COOKIE_DOMAIN = None  # Don't set domain, let browser handle it
 CSRF_COOKIE_SAMESITE = 'Lax' if DEBUG else 'None'  # Lax for local HTTP, None for production HTTPS
 CSRF_COOKIE_SECURE = not DEBUG  # Only require HTTPS in production
 CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to read CSRF token
@@ -207,9 +207,44 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Django REST Framework settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.SessionAuthentication',
+        'api.authentication.CsrfExemptSessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+}
+
+# Logging configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'api': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        # Suppress static file logs in development
+        'django.server': {
+            'handlers': ['console'],
+            'level': 'WARNING',  # Only show warnings/errors, not every static file request
+            'propagate': False,
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
 }

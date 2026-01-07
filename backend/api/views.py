@@ -1,9 +1,13 @@
 import requests
 import base64, os
+import logging
 from google import genai
 from google.genai import types
 from collections import defaultdict
 import json
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -113,6 +117,25 @@ def health_check(request):
         "message": "Server is running"
     }, status=200)
 
+# Debug endpoint to check configuration
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def debug_config(request):
+    """Debug endpoint to check OAuth and session configuration"""
+    return Response({
+        "mal_client_id": CLIENT_ID[:10] + "..." if CLIENT_ID else "MISSING",
+        "mal_redirect_uri": REDIRECT_URI,
+        "frontend_url": FRONTEND_URL,
+        "session_engine": settings.SESSION_ENGINE,
+        "session_cookie_samesite": settings.SESSION_COOKIE_SAMESITE,
+        "session_cookie_secure": settings.SESSION_COOKIE_SECURE,
+        "session_cookie_domain": settings.SESSION_COOKIE_DOMAIN,
+        "session_cookie_httponly": settings.SESSION_COOKIE_HTTPONLY,
+        "debug_mode": settings.DEBUG,
+        "allowed_hosts": settings.ALLOWED_HOSTS,
+        "cors_origins": settings.CORS_ALLOWED_ORIGINS,
+    })
+
 # CSRF token endpoint for cross-origin requests
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -152,8 +175,9 @@ def mal_login(request):
     # Store code_verifier in session
     request.session["code_verifier"] = code_verifier
 
-    print(f"Generated code_verifier: {code_verifier}")
-    print(f"Generated code_challenge: {code_challenge}")
+    logger.info(f"[mal_login] Generated code_verifier: {code_verifier}")
+    logger.info(f"[mal_login] Generated code_challenge: {code_challenge}")
+    logger.info(f"[mal_login] Session key: {request.session.session_key}")
 
     auth_url = (
         f"{MAL_AUTH_URL}?response_type=code"
@@ -169,17 +193,31 @@ def mal_callback(request):
     """
     Handles the OAuth callback from MyAnimeList, exchanges the code for an access token.
     """
+    logger.info(f"[mal_callback] START - Full request GET params: {request.GET}")
+    logger.info(f"[mal_callback] Session exists: {bool(request.session.session_key)}")
+    logger.info(f"[mal_callback] Session key: {request.session.session_key}")
+    logger.info(f"[mal_callback] Cookies: {request.COOKIES.keys()}")
+    
+    # Check for OAuth errors (user denied)
+    error = request.GET.get("error")
+    if error:
+        error_msg = request.GET.get("message", "Authorization denied")
+        logger.error(f"[mal_callback] User denied authorization: {error} - {error_msg}")
+        return redirect(f"{FRONTEND_URL}/get-started")
+    
     code = request.GET.get("code")
-    print(f"Received authorization code: {code}")
+    logger.info(f"[mal_callback] Authorization code received: {code[:20] if code else None}...")
 
     if not code:
+        logger.error(f"[mal_callback] No code in callback, GET params: {request.GET}")
         return JsonResponse({"error": "Authorization failed, no code received."}, status=400) 
 
     code_verifier = request.session.get("code_verifier")
-    print(f"Retrieved code_verifier from session: {code_verifier}")
+    logger.info(f"[mal_callback] Code verifier from session: {code_verifier[:20] if code_verifier else None}...")
 
     if not code_verifier:
-        return JsonResponse({"error": "Missing PKCE code_verifier"}, status=400)
+        logger.error(f"[mal_callback] Missing code_verifier in session. Session data: {dict(request.session.items())}")
+        return JsonResponse({"error": "Missing PKCE code_verifier. Please try logging in again."}, status=400)
 
     # Exchange the authorization code for an access token
     token_data = {
@@ -190,51 +228,104 @@ def mal_callback(request):
         "redirect_uri": REDIRECT_URI,
         "code_verifier": code_verifier,
     }
+    
+    logger.info(f"[mal_callback] Exchanging code for token with redirect_uri: {REDIRECT_URI}")
 
-    response = requests.post(MAL_TOKEN_URL, data=token_data)
-    print(f"Token request response status: {response.status_code}")
-    print(f"Token request response text: {response.text}")
+    try:
+        response = requests.post(MAL_TOKEN_URL, data=token_data, timeout=10)
+        logger.info(f"[mal_callback] Token response status: {response.status_code}")
+        
+        if response.status_code != 200:
+            logger.error(f"[mal_callback] Token exchange failed: {response.status_code} - {response.text}")
+            return JsonResponse({
+                "error": "Failed to retrieve access token", 
+                "details": response.text,
+                "status": response.status_code
+            }, status=400)
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[mal_callback] Token request exception: {str(e)}")
+        return JsonResponse({"error": "Failed to connect to MAL API", "details": str(e)}, status=500)
+    
+    # Get access token
+    token_json = response.json()
+    access_token = token_json.get("access_token")
+    logger.info(f"[mal_callback] Access token received: {access_token[:20] if access_token else None}...")
 
-    if response.status_code == 200:
-        token_json = response.json()
-        access_token = token_json.get("access_token")
+    request.session["mal_access_token"] = access_token
+    logger.info(f"[mal_callback] Stored access_token in session")
 
-        request.session["mal_access_token"] = access_token
-
+    # Fetch user info from MAL
+    try:
         user_info_response = requests.get(
             "https://api.myanimelist.net/v2/users/@me",
             headers={"Authorization": f"Bearer {access_token}"},
+            timeout=10
         )
+        
+        logger.info(f"[mal_callback] User info response status: {user_info_response.status_code}")
 
         if user_info_response.status_code != 200:
-            return JsonResponse({"error": "Failed to fetch MAL user info"}, status = 400)
+            logger.error(f"[mal_callback] Failed to fetch MAL user info: {user_info_response.status_code} - {user_info_response.text}")
+            return JsonResponse({"error": "Failed to fetch MAL user info", "details": user_info_response.text}, status=400)
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[mal_callback] User info request exception: {str(e)}")
+        return JsonResponse({"error": "Failed to fetch user info from MAL", "details": str(e)}, status=500)
+    
+    mal_user = user_info_response.json()
+    mal_username = mal_user.get("name")
+    
+    logger.info(f"[mal_callback] MAL user data received for: {mal_username}")
+    logger.info(f"[mal_callback] Full MAL user data: {json.dumps(mal_user, indent=2)}")
+    
+    if not mal_username:
+        logger.error(f"[mal_callback] No username in MAL response: {mal_user}")
+        return JsonResponse({"error": "Invalid MAL user data"}, status=400)
+
+    # Create/get Django user and profile
+    try:
+        user, user_created = User.objects.get_or_create(username=mal_username)
+        logger.info(f"[mal_callback] User {'created' if user_created else 'found'}: {user.username}")
+
+        profile, profile_created = UserProfile.objects.get_or_create(user=user)
+        logger.info(f"[mal_callback] Profile {'created' if profile_created else 'found'}")
         
-        mal_user = user_info_response.json()
-        mal_username = mal_user.get("name")
-
-        user, _ = User.objects.get_or_create(username=mal_username)
-
-        profile, created = UserProfile.objects.get_or_create(user=user)
         profile.mal_access_token = access_token
         
-        # Store profile data on first login
-        profile.name = mal_user.get("name")
+        # Store profile data - extract picture URL properly
+        profile.name = mal_user.get("name") or mal_username
         profile.birthday = mal_user.get("birthday")
         profile.location = mal_user.get("location")
         profile.joined_at = mal_user.get("joined_at")
-        profile.picture = mal_user.get("picture")
+        
+        # MAL returns picture as a dict with "large" and "medium" keys
+        picture_data = mal_user.get("picture")
+        if picture_data and isinstance(picture_data, dict):
+            profile.picture = picture_data.get("medium") or picture_data.get("large")
+            logger.info(f"[mal_callback] Extracted picture URL: {profile.picture}")
+        elif isinstance(picture_data, str):
+            profile.picture = picture_data
+            logger.info(f"[mal_callback] Picture URL (string): {profile.picture}")
+        else:
+            logger.warning(f"[mal_callback] No picture data or unexpected format: {picture_data}")
+            
         profile.save()
+        logger.info(f"[mal_callback] Profile saved: name={profile.name}, picture={profile.picture}")
 
+        # Log the user in
         login(request, user)
+        logger.info(f"[mal_callback] User logged in via Django auth")
+        logger.info(f"[mal_callback] Is authenticated: {request.user.is_authenticated}")
+        logger.info(f"[mal_callback] Logged in as: {request.user.username}")
+        logger.info(f"[mal_callback] Session key after login: {request.session.session_key}")
+        logger.info(f"[mal_callback] Session cookie settings: SameSite={settings.SESSION_COOKIE_SAMESITE}, Secure={settings.SESSION_COOKIE_SECURE}, Domain={settings.SESSION_COOKIE_DOMAIN}")
 
-        print(f"Is user authenticated in Django? {request.user.is_authenticated}")
-        print(f"Logged in as: {request.user.username}")
-
-
-        # return JsonResponse({"message": "Login successful", "access_token": access_token})
-        return redirect(f"{FRONTEND_URL}/dashboard")  # Or whatever route you want to land on in React
-
-    return JsonResponse({"error": "Failed to retrieve access token", "details": response.text}, status=400)
+        redirect_url = f"{FRONTEND_URL}/dashboard"
+        logger.info(f"[mal_callback] SUCCESS - Redirecting to: {redirect_url}")
+        return redirect(redirect_url)
+        
+    except Exception as e:
+        logger.error(f"[mal_callback] Exception during user creation/login: {str(e)}", exc_info=True)
+        return JsonResponse({"error": "Internal server error", "details": str(e)}, status=500)
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
@@ -264,14 +355,23 @@ def sync_mal_profile(request):
 @permission_classes([IsAuthenticated])
 def cached_mal_profile(request):
     """ Return the stored profile """
-    prof = request.user.userprofile
-    return Response({
-        "name": prof.name,
-        "birthday": prof.birthday,
-        "location": prof.location,
-        "joined_at": prof.joined_at,
-        "picture": prof.picture,
-    })
+    logger.info(f"[cached_mal_profile] User: {request.user.username}, Authenticated: {request.user.is_authenticated}")
+    logger.info(f"[cached_mal_profile] Session key: {request.session.session_key}")
+    logger.info(f"[cached_mal_profile] Has MAL token: {bool(request.session.get('mal_access_token'))}")
+    
+    try:
+        prof = request.user.userprofile
+        logger.info(f"[cached_mal_profile] Profile data: name={prof.name}, picture={prof.picture}")
+        return Response({
+            "name": prof.name,
+            "birthday": prof.birthday,
+            "location": prof.location,
+            "joined_at": prof.joined_at,
+            "picture": prof.picture,
+        })
+    except Exception as e:
+        logger.error(f"[cached_mal_profile] Error: {str(e)}", exc_info=True)
+        return Response({"error": str(e)}, status=500)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -314,6 +414,7 @@ def sync_anime_list(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_cached_anime_list(request):
+    logger.info(f"[get_cached_anime_list] User: {request.user.username}")
     entries = AnimeEntry.objects.filter(user=request.user).values(
         "mal_id",
         "title",
@@ -326,14 +427,15 @@ def get_cached_anime_list(request):
         "finish_date",
         "last_updated",
     )
+    logger.info(f"[get_cached_anime_list] Found {len(entries)} entries")
     return JsonResponse(list(entries), safe=False)
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def session_status(request):
     return Response({
-        "is_authenticated": True,
-        "username": request.user.username,
+        "is_authenticated": request.user.is_authenticated,
+        "username": request.user.username if request.user.is_authenticated else None,
     })
 
 #@csrf_exempt
@@ -400,8 +502,10 @@ def get_stats_data(request):
     """
     Fetches detailed anime data from MAL for stats calculations
     """
+    logger.info(f"[get_stats_data] User: {request.user.username}")
     token = request.session.get("mal_access_token")
     if not token:
+        logger.error(f"[get_stats_data] No MAL token in session")
         return Response({"error": "Not authenticated"}, status=401)
 
     # Get user's anime list with detailed fields
@@ -1201,8 +1305,6 @@ def posthog_proxy(request, path=''):
     if query_string:
         url += '?' + query_string
     
-    print(f"[PostHog Proxy] {request.method} {url}")
-    
     try:
         headers = {
             'User-Agent': request.META.get('HTTP_USER_AGENT', 'Mozilla/5.0'),
@@ -1223,8 +1325,6 @@ def posthog_proxy(request, path=''):
                 timeout=10
             )
         
-        print(f"[PostHog Proxy] Response: {response.status_code}")
-        
         # Return the response from PostHog
         django_response = HttpResponse(
             response.content,
@@ -1239,7 +1339,7 @@ def posthog_proxy(request, path=''):
         return django_response
         
     except Exception as e:
-        print(f"[PostHog Proxy Error] {e}")
+        logger.error(f"[PostHog Proxy Error] {e}")
         return HttpResponse(
             json.dumps({'error': str(e)}),
             status=500,
