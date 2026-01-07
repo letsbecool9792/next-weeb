@@ -97,8 +97,8 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-SESSION_COOKIE_SAMESITE = 'Lax'  # Lax works for localhost development (same-site OAuth + cross-origin GET)
-SESSION_COOKIE_SECURE = False  # False for local HTTP
+SESSION_COOKIE_SAMESITE = 'Lax' if DEBUG else 'None'  # Lax for localhost, None for production cross-origin
+SESSION_COOKIE_SECURE = not DEBUG  # False for local HTTP, True for production HTTPS
 SESSION_COOKIE_DOMAIN = None  # Don't set domain, let browser handle it
 CSRF_COOKIE_SAMESITE = 'Lax' if DEBUG else 'None'  # Lax for local HTTP, None for production HTTPS
 CSRF_COOKIE_SECURE = not DEBUG  # Only require HTTPS in production
