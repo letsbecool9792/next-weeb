@@ -21,10 +21,12 @@ class CsrfExemptSessionAuthentication(SessionAuthentication):
         return  # Do not enforce CSRF
     
     def authenticate(self, request):
-        logger.info(f"[CsrfExemptSessionAuthentication] Authenticating request to {request.path}")
         result = super().authenticate(request)
         if result:
-            logger.info(f"[CsrfExemptSessionAuthentication] User authenticated: {result[0].username}")
+            logger.info(f"[CsrfExemptSessionAuthentication] User authenticated: {result[0].username} for {request.path}")
         else:
-            logger.warning(f"[CsrfExemptSessionAuthentication] Authentication failed")
+            # Only log auth failures for non-public endpoints
+            public_paths = ['/api/health/', '/api/session-status/', '/api/debug-config/', '/api/csrf-token/']
+            if request.path not in public_paths:
+                logger.warning(f"[CsrfExemptSessionAuthentication] Authentication failed for {request.path}")
         return result
