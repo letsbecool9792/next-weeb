@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ArrowRight, Shield, Zap, BarChart2, List } from 'lucide-react';
 import { usePostHog } from 'posthog-js/react';
 import { API_URL } from '../../config';
+import { isAuthenticated } from '../../utils/auth';
 
 const GetStarted = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>>}) => {
     //const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -9,29 +10,21 @@ const GetStarted = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLog
     const posthog = usePostHog();
 
     useEffect(() => {
-        (async () => {
-            try {
-            const res = await fetch(`${API_URL}/api/session-status/`, {
-                method: 'GET',
-                credentials: 'include',
-            });
-            if (res.ok) {
-                const data = await res.json();
-                if (data.is_authenticated) {
-                    setIsLoggedIn(true);
-                    // Track successful login (returning user)
-                    posthog?.capture('user_logged_in', {
-                        login_type: 'returning_session',
-                    });
-                }
+        // Check if user is authenticated via JWT token in localStorage
+        const checkAuth = () => {
+            const authenticated = isAuthenticated();
+            setIsLoggedIn(authenticated);
+            setIsLoading(false);
+            
+            if (authenticated) {
+                posthog?.capture('user_logged_in', {
+                    login_type: 'returning_session',
+                });
             }
-            } catch {
-                /* ignore */
-            } finally {
-                setIsLoading(false);
-            }
-        })();
-    }, []);
+        };
+        
+        checkAuth();
+    }, [setIsLoggedIn, posthog]);
       
 
     const handleMALLogin = () => {

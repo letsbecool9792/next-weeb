@@ -5,6 +5,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import LoadingScreen from '../components/LoadingScreen';
 import { API_URL } from '../config';
+import { authFetch } from '../utils/fetch';
 
 type Profile = {
     name: string;
@@ -40,28 +41,19 @@ const Dashboard = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
         setLoading(true);
         
         // Fetch profile
-        const profileRes = await fetch(`${API_URL}/api/cached-profile/`, {
-            method: 'GET',
-            credentials: 'include',
-        });
+        const profileRes = await authFetch(`${API_URL}/api/cached-profile/`);
         if (profileRes.ok) {
             setProfile(await profileRes.json());
         }
 
         // Fetch anime list
-        const animeRes = await fetch(`${API_URL}/api/cached-animelist/`, {
-            method: 'GET',
-            credentials: 'include',
-        });
+        const animeRes = await authFetch(`${API_URL}/api/cached-animelist/`);
         if (animeRes.ok) {
             setAnimeList(await animeRes.json());
         }
 
         // Fetch stats data
-        const statsRes = await fetch(`${API_URL}/api/stats-data/`, {
-            method: 'GET',
-            credentials: 'include',
-        });
+        const statsRes = await authFetch(`${API_URL}/api/stats-data/`);
         if (statsRes.ok) {
             setStatsData(await statsRes.json());
         }
@@ -73,16 +65,10 @@ const Dashboard = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
         setSyncing(true);
         
         // Sync profile
-        await fetch(`${API_URL}/api/sync-profile/`, {
-            method: 'GET',
-            credentials: 'include',
-        });
+        await authFetch(`${API_URL}/api/sync-profile/`);
 
         // Sync anime list
-        await fetch(`${API_URL}/api/sync-animelist/`, {
-            method: 'GET',
-            credentials: 'include',
-        });
+        await authFetch(`${API_URL}/api/sync-animelist/`);
 
         // Reload all data
         await loadData();

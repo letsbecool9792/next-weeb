@@ -6,6 +6,8 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import LoadingScreen from '../components/LoadingScreen';
 import { API_URL } from '../config';
+import { authFetch } from '../utils/fetch';
+import { isAuthenticated } from '../utils/auth';
 
 type AnimeEntry = {
     mal_id: number;
@@ -30,34 +32,17 @@ const AnimeList = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLogg
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
-    // Session check
+    // Auth check
     useEffect(() => {
-        (async () => {
-            try {
-                const res = await fetch(`${API_URL}/api/session-status/`, {
-                method: 'GET',
-                credentials: 'include',
-            });
-            if (res.ok) {
-                const data = await res.json();
-                if (data?.is_authenticated) {
-                    setIsLoggedIn(true);
-                }
-            }
-            } catch {
-                // silent fail
-            } finally {
-                setAuthChecked(true);
-            }
-        })();
+        if (isAuthenticated()) {
+            setIsLoggedIn(true);
+        }
+        setAuthChecked(true);
     }, []);
       
     // Anime list loader
     const loadAnime = async () => {
-        const res = await fetch(`${API_URL}/api/cached-animelist/`, {
-            method: 'GET',
-            credentials: 'include',
-        });
+        const res = await authFetch(`${API_URL}/api/cached-animelist/`);
         if (res.ok) {
             const data: AnimeEntry[] = await res.json();
             setAnimeList(data);
@@ -72,10 +57,7 @@ const AnimeList = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLogg
         setSyncing(true);
         const start = Date.now();
       
-        const res = await fetch(`${API_URL}/api/sync-animelist/`, {
-            method: 'GET',
-            credentials: 'include',
-        });
+        const res = await authFetch(`${API_URL}/api/sync-animelist/`);
         if (res.ok) {
           await loadAnime();
         }
@@ -103,15 +85,9 @@ const AnimeList = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLogg
         
             // 2) If cache was empty, sync from MAL:
             if (cacheData.length === 0) {
-                await fetch(`${API_URL}/api/sync-animelist/`, {
-                method: 'GET',
-                credentials: 'include',
-                });
+                await authFetch(`${API_URL}/api/sync-animelist/`);
                 // 3) Re-fetch cache after sync:
-                const updatedRes = await fetch(`${API_URL}/api/cached-animelist/`, {
-                method: 'GET',
-                credentials: 'include',
-                });
+                const updatedRes = await authFetch(`${API_URL}/api/cached-animelist/`);
                 const updatedData: AnimeEntry[] = updatedRes.ok ? await updatedRes.json() : [];
                 setAnimeList(updatedData);
             } else {

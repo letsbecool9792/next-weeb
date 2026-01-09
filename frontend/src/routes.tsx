@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 
 import Landing from "./pages/Landing";
 import GetStarted from "./pages/auth/GetStarted";
+import AuthCallback from "./pages/auth/AuthCallback";
 import AnimeList from "./pages/AnimeList";
 import Profile from "./pages/Profile";
 import AnimeDetail from "./pages/AnimeDetail";
@@ -26,6 +27,15 @@ const AppRoutes = ({ isLoggedIn, setIsLoggedIn }: AppRoutesProps) => {
 			element={
 				<GetStarted
 				isLoggedIn={isLoggedIn}
+				setIsLoggedIn={setIsLoggedIn}
+				/>
+			}
+		/>
+
+		<Route
+			path="/auth/callback"
+			element={
+				<AuthCallback
 				setIsLoggedIn={setIsLoggedIn}
 				/>
 			}

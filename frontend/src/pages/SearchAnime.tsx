@@ -6,6 +6,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import LoadingScreen from '../components/LoadingScreen';
 import { API_URL } from '../config';
+import { authFetch } from '../utils/fetch';
 
 type SearchResultNode = {
 	id: number;
@@ -32,9 +33,8 @@ const SearchAnime = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
 	setHasSearched(true);
 	try {
 		// 1) fetch search results
-		const res = await fetch(
-		`${API_URL}/api/search-anime/?q=${encodeURIComponent(query)}&limit=6`,
-		{ method: 'GET', credentials: 'include' }
+		const res = await authFetch(
+		`${API_URL}/api/search-anime/?q=${encodeURIComponent(query)}&limit=6`
 		);
 		if (!res.ok) throw new Error(`Search HTTP ${res.status}`);
 		const raw = await res.json();
@@ -47,9 +47,8 @@ const SearchAnime = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
 		const detailed: SearchDetail[] = (
 		await Promise.all(
 			nodes.map(async (node) => {
-			const dRes = await fetch(
-				`${API_URL}/api/anime/${node.id}/`,
-				{ method: 'GET', credentials: 'include' }
+			const dRes = await authFetch(
+				`${API_URL}/api/anime/${node.id}/`
 			);
 			if (!dRes.ok) throw new Error(`Detail HTTP ${dRes.status}`);
 			const det = await dRes.json();

@@ -2,6 +2,7 @@ import { User } from 'lucide-react';
 import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import { API_URL } from '../config';
+import { clearAuth } from '../utils/auth';
 
 const Header = ({setIsLoggedIn} : {setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>>}) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -13,17 +14,16 @@ const Header = ({setIsLoggedIn} : {setIsLoggedIn: React.Dispatch<React.SetStateA
     };
 
     const handleLogout = async () => {
-        const res = await fetch(`${API_URL}/api/logout/`, {
-          method: 'GET',
-          credentials: 'include',
-        });
-        if (res.ok) {
-          setIsLoggedIn(false);           // clear React state
-          window.location.href = '/';  // send them to landing page
-        } else {
-          console.error('Logout failed');
-        }
+        console.log('[Header] Logging out user');
         
+        // Clear JWT tokens from localStorage
+        clearAuth();
+        
+        // Update logged-in state
+        setIsLoggedIn(false);
+        
+        // Redirect to landing page
+        window.location.href = '/';
     };
 
     return (

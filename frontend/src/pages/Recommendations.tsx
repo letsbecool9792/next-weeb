@@ -7,6 +7,8 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import LoadingScreen from '../components/LoadingScreen';
 import { API_URL } from '../config';
+import { authFetch } from '../utils/fetch';
+import { getAuthHeader } from '../utils/auth';
 
 // Helper function to get CSRF token from API (for production cross-origin)
 const getCsrfToken = async () => {
@@ -81,10 +83,7 @@ const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
     const posthog = usePostHog();
 
     const loadRecommendations = async () => {
-        const res = await fetch(`${API_URL}/api/recommendations/`, {
-            method: 'GET',
-            credentials: 'include',
-        });
+        const res = await authFetch(`${API_URL}/api/recommendations/`);
         if (res.ok) {
             const data = await res.json();
             setRecommendations(data);
@@ -110,10 +109,7 @@ const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
     };
 
     const loadUserAnimeList = async () => {
-        const res = await fetch(`${API_URL}/api/cached-animelist/`, {
-            method: 'GET',
-            credentials: 'include',
-        });
+        const res = await authFetch(`${API_URL}/api/cached-animelist/`);
         if (res.ok) {
             const data = await res.json();
             console.log('[AI Chat] Fetched anime list:', data.length, 'total anime');
@@ -171,6 +167,7 @@ const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
             const csrfToken = await getCsrfToken();
             const headers: HeadersInit = {
                 'Content-Type': 'application/json',
+                ...getAuthHeader()
             };
             if (csrfToken) {
                 headers['X-CSRFToken'] = csrfToken;
@@ -178,7 +175,6 @@ const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
 
             const res = await fetch(`${API_URL}/api/ai-chat/`, {
                 method: 'POST',
-                credentials: 'include',
                 headers,
                 body: JSON.stringify({
                     message: userMessage,

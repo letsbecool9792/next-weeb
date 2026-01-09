@@ -5,6 +5,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import LoadingScreen from '../components/LoadingScreen';
 import { API_URL } from '../config';
+import { authFetch } from '../utils/fetch';
 
 type AnimeEntry = {
     title: string;
@@ -22,10 +23,7 @@ const Stats = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
 
     useEffect(() => {
         (async () => {
-            const res = await fetch(`${API_URL}/api/stats-data/`, {
-                method: 'GET',
-                credentials: 'include',
-            });
+            const res = await authFetch(`${API_URL}/api/stats-data/`);
             if (res.ok) {
                 const data = await res.json();
                 setAnimeList(data);
