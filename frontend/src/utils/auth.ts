@@ -37,6 +37,14 @@ export const getRefreshToken = (): string | null => {
 };
 
 /**
+ * Update only the access token (used after refresh)
+ */
+export const updateAccessToken = (accessToken: string) => {
+    localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+    console.log('[Auth] Access token updated');
+};
+
+/**
  * Get stored user data
  */
 export const getUserData = (): UserData | null => {

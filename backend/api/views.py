@@ -371,6 +371,43 @@ def exchange_oauth_token(request):
         logger.error(f"[exchange_oauth_token] Exception: {str(e)}", exc_info=True)
         return Response({"error": "Internal server error", "details": str(e)}, status=500)
 
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def refresh_jwt_token(request):
+    """
+    Refresh JWT access token using refresh token.
+    """
+    from rest_framework_simplejwt.tokens import RefreshToken
+    from rest_framework_simplejwt.exceptions import TokenError
+    
+    logger.info(f"[refresh_jwt_token] Token refresh requested")
+    
+    refresh_token = request.data.get('refresh')
+    
+    if not refresh_token:
+        logger.error(f"[refresh_jwt_token] No refresh token provided")
+        return Response({"error": "Refresh token required"}, status=400)
+    
+    try:
+        # Validate and decode refresh token
+        refresh = RefreshToken(refresh_token)
+        
+        # Generate new access token
+        new_access_token = str(refresh.access_token)
+        
+        logger.info(f"[refresh_jwt_token] New access token generated for user: {refresh.get('user_id')}")
+        
+        return Response({
+            "access": new_access_token,
+        }, status=200)
+        
+    except TokenError as e:
+        logger.error(f"[refresh_jwt_token] Invalid refresh token: {str(e)}")
+        return Response({"error": "Invalid or expired refresh token"}, status=401)
+    except Exception as e:
+        logger.error(f"[refresh_jwt_token] Error: {str(e)}", exc_info=True)
+        return Response({"error": "Token refresh failed"}, status=500)
+
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def sync_mal_profile(request):
@@ -409,14 +446,25 @@ def sync_mal_profile(request):
 def cached_mal_profile(request):
     """ Return the stored profile """
     logger.info(f"[cached_mal_profile] User: {request.user.username}, Authenticated: {request.user.is_authenticated}")
-    logger.info(f"[cached_mal_profile] Session key: {request.session.session_key}")
-    logger.info(f"[cached_mal_profile] Has MAL token: {bool(request.session.get('mal_access_token'))}")
     
     try:
         prof = request.user.userprofile
+        logger.info(f"[cached_mal_profile] Has MAL token: {bool(prof.mal_access_token)}")
         logger.info(f"[cached_mal_profile] Profile data: name={prof.name}, picture={prof.picture}")
         return Response({
             "name": prof.name,
+            "birthday": prof.birthday,
+            "location": prof.location,
+            "joined_at": prof.joined_at,
+            "picture": prof.picture,
+        })
+    except UserProfile.DoesNotExist:
+        logger.error(f"[cached_mal_profile] UserProfile does not exist for user: {request.user.username}")
+        # Create profile if missing
+        prof = UserProfile.objects.create(user=request.user)
+        logger.info(f"[cached_mal_profile] Created missing profile for user: {request.user.username}")
+        return Response({
+            "name": prof.name or request.user.username,
             "birthday": prof.birthday,
             "location": prof.location,
             "joined_at": prof.joined_at,
@@ -476,7 +524,7 @@ def sync_anime_list(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_cached_anime_list(request):
-    logger.info(f"[get_cached_anime_list] User: {request.user.username}")
+    logger.info(f"[get_cached_anime_list] User: {request.user.username} (ID: {request.user.id})")
     entries = AnimeEntry.objects.filter(user=request.user).values(
         "mal_id",
         "title",
@@ -490,6 +538,16 @@ def get_cached_anime_list(request):
         "last_updated",
     )
     logger.info(f"[get_cached_anime_list] Found {len(entries)} entries")
+    
+    # If no entries, check profile status for debugging
+    if len(entries) == 0:
+        try:
+            profile = request.user.userprofile
+            has_token = bool(profile.mal_access_token)
+            logger.info(f"[get_cached_anime_list] 0 entries - Profile exists: True, Has MAL token: {has_token}")
+        except UserProfile.DoesNotExist:
+            logger.warning(f"[get_cached_anime_list] 0 entries - Profile missing for user {request.user.username}")
+    
     return JsonResponse(list(entries), safe=False)
 
 @api_view(['GET'])
