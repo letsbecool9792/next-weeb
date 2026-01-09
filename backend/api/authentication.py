@@ -39,21 +39,23 @@ class LoggingJWTAuthentication(JWTAuthentication):
     JWT Authentication with detailed logging for debugging auth issues.
     """
     
+    # Public endpoints that should skip auth logging
+    SKIP_LOGGING_PATHS = [
+        '/api/health/',
+        '/api/debug-config/',
+        '/api/csrf-token/',
+        '/api/session-status/',
+        '/api/token/refresh/',
+        '/api/posthog/',
+    ]
+    
     def authenticate(self, request):
         """
         Override authenticate to add logging.
         """
-        # Check if the view has AllowAny permission (skip logging for public endpoints)
-        from rest_framework.permissions import AllowAny
-        
-        # Get the view's permission classes if available
-        view = getattr(request, 'resolver_match', None)
-        if view and hasattr(view, 'func'):
-            # Check for @permission_classes decorator
-            permission_classes = getattr(view.func, 'permission_classes', [])
-            if AllowAny in permission_classes:
-                # Skip logging for AllowAny endpoints
-                return super().authenticate(request)
+        # Skip logging for public endpoints
+        if any(request.path.startswith(path) for path in self.SKIP_LOGGING_PATHS):
+            return super().authenticate(request)
         
         # Log the authentication attempt
         auth_header = request.META.get('HTTP_AUTHORIZATION', '')
