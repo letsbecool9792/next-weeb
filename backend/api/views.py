@@ -123,6 +123,8 @@ def health_check(request):
 @permission_classes([AllowAny])
 def debug_config(request):
     """Debug endpoint to check OAuth and session configuration"""
+    from django.contrib.auth.models import User
+    
     return Response({
         "mal_client_id": CLIENT_ID[:10] + "..." if CLIENT_ID else "MISSING",
         "mal_redirect_uri": REDIRECT_URI,
@@ -135,6 +137,11 @@ def debug_config(request):
         "debug_mode": settings.DEBUG,
         "allowed_hosts": settings.ALLOWED_HOSTS,
         "cors_origins": settings.CORS_ALLOWED_ORIGINS,
+        
+        # Database diagnostics
+        "total_users": User.objects.count(),
+        "users_with_profiles": UserProfile.objects.count(),
+        "users": list(User.objects.values('id', 'username', 'is_active')[:10]),
     })
 
 # CSRF token endpoint for cross-origin requests

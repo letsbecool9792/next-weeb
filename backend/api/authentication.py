@@ -43,6 +43,18 @@ class LoggingJWTAuthentication(JWTAuthentication):
         """
         Override authenticate to add logging.
         """
+        # Check if the view has AllowAny permission (skip logging for public endpoints)
+        from rest_framework.permissions import AllowAny
+        
+        # Get the view's permission classes if available
+        view = getattr(request, 'resolver_match', None)
+        if view and hasattr(view, 'func'):
+            # Check for @permission_classes decorator
+            permission_classes = getattr(view.func, 'permission_classes', [])
+            if AllowAny in permission_classes:
+                # Skip logging for AllowAny endpoints
+                return super().authenticate(request)
+        
         # Log the authentication attempt
         auth_header = request.META.get('HTTP_AUTHORIZATION', '')
         logger.info(f"[JWT Auth] Path: {request.path}, Has Auth Header: {bool(auth_header)}")
@@ -70,6 +82,24 @@ class LoggingJWTAuthentication(JWTAuthentication):
             raise
         except AuthenticationFailed as e:
             logger.error(f"[JWT Auth] AUTH FAILED - Path: {request.path}, Error: {str(e)}")
+            # Log additional debug info for user not found errors
+            if 'user not found' in str(e).lower():
+                # Try to decode token to see what user_id it contains
+                from rest_framework_simplejwt.tokens import AccessToken
+                auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+                if auth_header:
+                    try:
+                        token = auth_header.split()[1]
+                        decoded = AccessToken(token)
+                        user_id = decoded.get('user_id')
+                        logger.error(f"[JWT Auth] Token claims user_id: {user_id}, but user not found in database")
+                        
+                        # Check if user exists
+                        from django.contrib.auth.models import User
+                        user_exists = User.objects.filter(id=user_id).exists()
+                        logger.error(f"[JWT Auth] User ID {user_id} exists in DB: {user_exists}")
+                    except Exception as decode_error:
+                        logger.error(f"[JWT Auth] Failed to decode token for debugging: {str(decode_error)}")
             raise
         except Exception as e:
             logger.error(f"[JWT Auth] UNEXPECTED ERROR - Path: {request.path}, Error: {str(e)}", exc_info=True)

@@ -69,7 +69,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
  */
 export const authFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
     // First attempt with current token
-    const headers = {
+    let headers = {
         ...options.headers,
         ...getAuthHeader(),
     };
@@ -82,21 +82,28 @@ export const authFetch = async (url: string, options: RequestInit = {}): Promise
     // If 401 Unauthorized, try to refresh token and retry once
     if (response.status === 401) {
         console.log('[Auth] Got 401, attempting token refresh...');
+        console.log('[Auth] Original request URL:', url);
         
         const newAccessToken = await refreshAccessToken();
 
         if (newAccessToken) {
             // Retry the request with new token
             console.log('[Auth] Retrying request with new token...');
-            const newHeaders = {
+            
+            // Create fresh headers with new token
+            headers = {
                 ...options.headers,
                 'Authorization': `Bearer ${newAccessToken}`,
             };
 
+            console.log('[Auth] Retry headers include Authorization:', 'Authorization' in headers);
+
             response = await fetch(url, {
                 ...options,
-                headers: newHeaders,
+                headers,
             });
+
+            console.log('[Auth] Retry response status:', response.status);
 
             // If still 401 after refresh, logout
             if (response.status === 401) {
