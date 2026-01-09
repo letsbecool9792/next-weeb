@@ -1,7 +1,6 @@
 import { User } from 'lucide-react';
 import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
-import { API_URL } from '../config';
 import { clearAuth } from '../utils/auth';
 
 const Header = ({setIsLoggedIn} : {setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>>}) => {
