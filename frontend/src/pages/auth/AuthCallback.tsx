@@ -12,13 +12,27 @@ const AuthCallback = ({ setIsLoggedIn }: { setIsLoggedIn: React.Dispatch<React.S
             console.log('[AuthCallback] Starting token exchange');
             
             try {
+                // Get code and verifier from URL params
+                const urlParams = new URLSearchParams(window.location.search);
+                const code = urlParams.get('code');
+                const verifier = urlParams.get('verifier');
+                
+                console.log('[AuthCallback] Code from URL:', code ? code.substring(0, 20) + '...' : 'none');
+                console.log('[AuthCallback] Verifier from URL:', verifier ? verifier.substring(0, 20) + '...' : 'none');
+                
+                // Prepare request body
+                const requestBody: any = {};
+                if (code) requestBody.code = code;
+                if (verifier) requestBody.verifier = verifier;
+                
                 // Call backend to exchange OAuth code for JWT tokens
                 const res = await fetch(`${API_URL}/api/exchange-token/`, {
                     method: 'POST',
-                    credentials: 'include', // Send session cookie with OAuth code
+                    credentials: 'include', // Send session cookie as fallback
                     headers: {
                         'Content-Type': 'application/json',
                     },
+                    body: JSON.stringify(requestBody),
                 });
 
                 console.log('[AuthCallback] Exchange response status:', res.status);

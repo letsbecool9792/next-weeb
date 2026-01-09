@@ -219,7 +219,7 @@ def mal_callback(request):
         logger.error(f"[mal_callback] No code in callback, GET params: {request.GET}")
         return redirect(f"{FRONTEND_URL}/get-started?error=no_code")
 
-    # Store code_verifier in session for token exchange endpoint to use
+    # Get code_verifier from session
     code_verifier = request.session.get("code_verifier")
     logger.info(f"[mal_callback] Code verifier from session: {code_verifier[:20] if code_verifier else None}...")
 
@@ -227,14 +227,18 @@ def mal_callback(request):
         logger.error(f"[mal_callback] Missing code_verifier in session")
         return redirect(f"{FRONTEND_URL}/get-started?error=missing_verifier")
 
-    # Store code temporarily in session for the token exchange endpoint
+    # Instead of storing in session (doesn't work cross-origin), pass directly in URL
+    # Store them temporarily in session as backup
     request.session["oauth_code"] = code
+    request.session["code_verifier_backup"] = code_verifier
     request.session["oauth_code_timestamp"] = int(time.time())
-    logger.info(f"[mal_callback] Stored OAuth code in session, redirecting to frontend")
+    logger.info(f"[mal_callback] Passing OAuth code and verifier to frontend via URL")
     
-    # Redirect to frontend callback page
-    redirect_url = f"{FRONTEND_URL}/auth/callback"
-    logger.info(f"[mal_callback] SUCCESS - Redirecting to: {redirect_url}")
+    # Redirect to frontend callback page with code and verifier
+    # Use URL-safe encoding for the verifier
+    import urllib.parse
+    redirect_url = f"{FRONTEND_URL}/auth/callback?code={urllib.parse.quote(code)}&verifier={urllib.parse.quote(code_verifier)}"
+    logger.info(f"[mal_callback] SUCCESS - Redirecting to: {redirect_url[:100]}...")
     return redirect(redirect_url)
 
 @api_view(['POST'])
@@ -248,17 +252,27 @@ def exchange_oauth_token(request):
     
     logger.info(f"[exchange_oauth_token] START - Request from {request.META.get('HTTP_ORIGIN')}")
     
-    # Get OAuth code from session
-    oauth_code = request.session.get("oauth_code")
-    code_verifier = request.session.get("code_verifier")
-    code_timestamp = request.session.get("oauth_code_timestamp", 0)
+    # Get OAuth code and verifier from request body (not session - cross-origin doesn't work)
+    oauth_code = request.data.get("code")
+    code_verifier = request.data.get("verifier")
     
-    logger.info(f"[exchange_oauth_token] OAuth code from session: {oauth_code[:20] if oauth_code else None}...")
-    logger.info(f"[exchange_oauth_token] Code verifier from session: {code_verifier[:20] if code_verifier else None}...")
+    logger.info(f"[exchange_oauth_token] OAuth code from request: {oauth_code[:20] if oauth_code else None}...")
+    logger.info(f"[exchange_oauth_token] Code verifier from request: {code_verifier[:20] if code_verifier else None}...")
+    
+    # Fallback to session if not in request body (for backward compatibility)
+    if not oauth_code or not code_verifier:
+        logger.info(f"[exchange_oauth_token] Not in request body, checking session...")
+        oauth_code = request.session.get("oauth_code")
+        code_verifier = request.session.get("code_verifier") or request.session.get("code_verifier_backup")
+        logger.info(f"[exchange_oauth_token] OAuth code from session: {oauth_code[:20] if oauth_code else None}...")
+        logger.info(f"[exchange_oauth_token] Code verifier from session: {code_verifier[:20] if code_verifier else None}...")
     
     if not oauth_code or not code_verifier:
-        logger.error(f"[exchange_oauth_token] Missing OAuth code or verifier in session")
+        logger.error(f"[exchange_oauth_token] Missing OAuth code or verifier")
         return Response({"error": "No OAuth session found. Please log in again."}, status=400)
+    
+    # Check timestamp if available
+    code_timestamp = request.session.get("oauth_code_timestamp", 0)
     
     # Check if code is not too old (5 minutes max)
     if int(time.time()) - code_timestamp > 300:
