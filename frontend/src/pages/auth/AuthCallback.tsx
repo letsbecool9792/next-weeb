@@ -28,7 +28,6 @@ const AuthCallback = ({ setIsLoggedIn }: { setIsLoggedIn: React.Dispatch<React.S
                 // Call backend to exchange OAuth code for JWT tokens
                 const res = await fetch(`${API_URL}/api/exchange-token/`, {
                     method: 'POST',
-                    credentials: 'include', // Send session cookie as fallback
                     headers: {
                         'Content-Type': 'application/json',
                     },

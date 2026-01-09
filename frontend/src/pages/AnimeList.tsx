@@ -77,10 +77,7 @@ const AnimeList = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLogg
             setSyncing(true);
         
             // 1) Fetch cached data directly:
-            const cacheRes = await fetch(`${API_URL}/api/cached-animelist/`, {
-                method: 'GET',
-                credentials: 'include',
-            });
+            const cacheRes = await authFetch(`${API_URL}/api/cached-animelist/`);
             const cacheData: AnimeEntry[] = cacheRes.ok ? await cacheRes.json() : [];
         
             // 2) If cache was empty, sync from MAL:

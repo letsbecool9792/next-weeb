@@ -176,16 +176,17 @@ def generate_code_challenge(code_verifier):
 def mal_login(request):
     """
     Redirects the user to MyAnimeList's OAuth authorization page.
+    Verifier will be passed back via URL (no session storage).
     """
     code_verifier = generate_code_verifier()
     code_challenge = generate_code_challenge(code_verifier)
 
-    # Store code_verifier in session
-    request.session["code_verifier"] = code_verifier
-
     logger.info(f"[mal_login] Generated code_verifier: {code_verifier}")
     logger.info(f"[mal_login] Generated code_challenge: {code_challenge}")
-    logger.info(f"[mal_login] Session key: {request.session.session_key}")
+
+    # Encode verifier in state parameter to get it back in callback
+    import urllib.parse
+    state = urllib.parse.quote(code_verifier)
 
     auth_url = (
         f"{MAL_AUTH_URL}?response_type=code"
@@ -193,6 +194,7 @@ def mal_login(request):
         f"&redirect_uri={REDIRECT_URI}"
         f"&code_challenge={code_challenge}"
         f"&code_challenge_method=plain"
+        f"&state={state}"
     )
 
     return redirect(auth_url)
@@ -200,8 +202,7 @@ def mal_login(request):
 def mal_callback(request):
     """
     Handles the OAuth callback from MyAnimeList.
-    Now just stores the OAuth code and redirects to frontend.
-    Frontend will exchange the code for JWT tokens.
+    Passes code and verifier to frontend via URL (no session).
     """
     logger.info(f"[mal_callback] START - Full request GET params: {request.GET}")
     
@@ -213,29 +214,22 @@ def mal_callback(request):
         return redirect(f"{FRONTEND_URL}/get-started?error=access_denied")
     
     code = request.GET.get("code")
+    code_verifier = request.GET.get("state")  # Get verifier from state param
+    
     logger.info(f"[mal_callback] Authorization code received: {code[:20] if code else None}...")
+    logger.info(f"[mal_callback] Code verifier from state: {code_verifier[:20] if code_verifier else None}...")
 
     if not code:
         logger.error(f"[mal_callback] No code in callback, GET params: {request.GET}")
         return redirect(f"{FRONTEND_URL}/get-started?error=no_code")
 
-    # Get code_verifier from session
-    code_verifier = request.session.get("code_verifier")
-    logger.info(f"[mal_callback] Code verifier from session: {code_verifier[:20] if code_verifier else None}...")
-
     if not code_verifier:
-        logger.error(f"[mal_callback] Missing code_verifier in session")
+        logger.error(f"[mal_callback] Missing code_verifier in state param")
         return redirect(f"{FRONTEND_URL}/get-started?error=missing_verifier")
 
-    # Instead of storing in session (doesn't work cross-origin), pass directly in URL
-    # Store them temporarily in session as backup
-    request.session["oauth_code"] = code
-    request.session["code_verifier_backup"] = code_verifier
-    request.session["oauth_code_timestamp"] = int(time.time())
     logger.info(f"[mal_callback] Passing OAuth code and verifier to frontend via URL")
     
     # Redirect to frontend callback page with code and verifier
-    # Use URL-safe encoding for the verifier
     import urllib.parse
     redirect_url = f"{FRONTEND_URL}/auth/callback?code={urllib.parse.quote(code)}&verifier={urllib.parse.quote(code_verifier)}"
     logger.info(f"[mal_callback] SUCCESS - Redirecting to: {redirect_url[:100]}...")
@@ -247,39 +241,22 @@ def exchange_oauth_token(request):
     """
     Exchanges the OAuth code for JWT tokens.
     Called by frontend after OAuth redirect.
+    Code and verifier must be in request body (no session).
     """
     from rest_framework_simplejwt.tokens import RefreshToken
     
     logger.info(f"[exchange_oauth_token] START - Request from {request.META.get('HTTP_ORIGIN')}")
     
-    # Get OAuth code and verifier from request body (not session - cross-origin doesn't work)
+    # Get OAuth code and verifier from request body only
     oauth_code = request.data.get("code")
     code_verifier = request.data.get("verifier")
     
     logger.info(f"[exchange_oauth_token] OAuth code from request: {oauth_code[:20] if oauth_code else None}...")
     logger.info(f"[exchange_oauth_token] Code verifier from request: {code_verifier[:20] if code_verifier else None}...")
     
-    # Fallback to session if not in request body (for backward compatibility)
-    if not oauth_code or not code_verifier:
-        logger.info(f"[exchange_oauth_token] Not in request body, checking session...")
-        oauth_code = request.session.get("oauth_code")
-        code_verifier = request.session.get("code_verifier") or request.session.get("code_verifier_backup")
-        logger.info(f"[exchange_oauth_token] OAuth code from session: {oauth_code[:20] if oauth_code else None}...")
-        logger.info(f"[exchange_oauth_token] Code verifier from session: {code_verifier[:20] if code_verifier else None}...")
-    
     if not oauth_code or not code_verifier:
         logger.error(f"[exchange_oauth_token] Missing OAuth code or verifier")
         return Response({"error": "No OAuth session found. Please log in again."}, status=400)
-    
-    # Check timestamp if available
-    code_timestamp = request.session.get("oauth_code_timestamp", 0)
-    
-    # Check if code is not too old (5 minutes max)
-    if int(time.time()) - code_timestamp > 300:
-        logger.error(f"[exchange_oauth_token] OAuth code expired (age: {int(time.time()) - code_timestamp}s)")
-        del request.session["oauth_code"]
-        del request.session["oauth_code_timestamp"]
-        return Response({"error": "OAuth code expired. Please log in again."}, status=400)
     
     # Exchange the authorization code for MAL access token
     token_data = {
@@ -371,12 +348,6 @@ def exchange_oauth_token(request):
         refresh_token = str(refresh)
         
         logger.info(f"[exchange_oauth_token] JWT tokens generated for user: {user.username}")
-        
-        # Clear OAuth session data
-        del request.session["oauth_code"]
-        del request.session["code_verifier"]
-        del request.session["oauth_code_timestamp"]
-        logger.info(f"[exchange_oauth_token] Cleared OAuth session data")
         
         return Response({
             "access": access_token,

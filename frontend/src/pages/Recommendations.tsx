@@ -10,37 +10,6 @@ import { API_URL } from '../config';
 import { authFetch } from '../utils/fetch';
 import { getAuthHeader } from '../utils/auth';
 
-// Helper function to get CSRF token from API (for production cross-origin)
-const getCsrfToken = async () => {
-    try {
-        const res = await fetch(`${API_URL}/api/csrf-token/`, {
-            method: 'GET',
-            credentials: 'include',
-        });
-        if (res.ok) {
-            const data = await res.json();
-            return data.csrfToken;
-        }
-    } catch (error) {
-        console.error('[CSRF] Failed to fetch token:', error);
-    }
-    
-    // Fallback: try reading from cookie (works in local dev)
-    const name = 'csrftoken';
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-};
-
 type Anime = {
     id: number;
     title: string;
@@ -164,18 +133,12 @@ const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
                 ...(recommendations?.hidden_gems || [])
             ].slice(0, 10).map(a => ({ title: a.title }));
 
-            const csrfToken = await getCsrfToken();
-            const headers: HeadersInit = {
-                'Content-Type': 'application/json',
-                ...getAuthHeader()
-            };
-            if (csrfToken) {
-                headers['X-CSRFToken'] = csrfToken;
-            }
-
             const res = await fetch(`${API_URL}/api/ai-chat/`, {
                 method: 'POST',
-                headers,
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...getAuthHeader()
+                },
                 body: JSON.stringify({
                     message: userMessage,
                     context,
