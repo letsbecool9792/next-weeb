@@ -24,6 +24,8 @@ from django.views.decorators.csrf import csrf_exempt
 
 from .models import AnimeEntry
 from .models import UserProfile
+from . import mal
+from .mal import mal_get, MalNotFound, MalUnavailable
 
 # MAL Genre ID mapping (fetched from MAL API)
 GENRE_IDS = {
@@ -112,11 +114,6 @@ def health_check(request):
         "message": "Server is running"
     }, status=200)
 
-# MyAnimeList OAuth endpoints
-MAL_AUTH_URL = "https://myanimelist.net/v1/oauth2/authorize"
-MAL_TOKEN_URL = "https://myanimelist.net/v1/oauth2/token"
-
-
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def oauth_config(request):
@@ -129,7 +126,7 @@ def oauth_config(request):
     guaranteed to use the identical string, which MAL requires.
     """
     return Response({
-        "authorize_url": MAL_AUTH_URL,
+        "authorize_url": mal.MAL_AUTH_URL,
         "client_id": settings.MAL_CLIENT_ID,
         "redirect_uri": settings.MAL_REDIRECT_URI,
     })
@@ -143,8 +140,8 @@ def exchange_oauth_token(request):
 
     The browser arrives with the one-time code MAL gave it and the verifier it
     generated before leaving for MAL. We add the client secret (which only the
-    server knows) and trade all three for a MAL access token, then issue our
-    own JWTs for the matching user.
+    server knows) and trade all three for MAL tokens, then issue our own JWTs
+    for the matching user.
     """
     from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -156,40 +153,12 @@ def exchange_oauth_token(request):
 
     # MAL only honours the code if the verifier matches the challenge the
     # browser sent when this login started, and the redirect URI is the same.
-    try:
-        response = requests.post(
-            MAL_TOKEN_URL,
-            data={
-                "client_id": settings.MAL_CLIENT_ID,
-                "client_secret": settings.MAL_CLIENT_SECRET,
-                "grant_type": "authorization_code",
-                "code": oauth_code,
-                "code_verifier": code_verifier,
-                "redirect_uri": settings.MAL_REDIRECT_URI,
-            },
-            timeout=10,
-        )
-    except requests.exceptions.RequestException as e:
-        logger.error(f"[exchange_oauth_token] Could not reach MAL token endpoint: {e}")
-        return Response({"error": "Could not reach MyAnimeList. Please try again."}, status=502)
-
-    if response.status_code != 200:
-        logger.error(f"[exchange_oauth_token] MAL refused the code: {response.status_code} - {response.text}")
+    token_json = mal.exchange_code(oauth_code, code_verifier)
+    if token_json is None:
         return Response({"error": "MyAnimeList rejected the login. Please try again."}, status=400)
 
-    mal_access_token = response.json().get("access_token")
-
     # Ask MAL who this token belongs to
-    try:
-        user_info_response = requests.get(
-            "https://api.myanimelist.net/v2/users/@me",
-            headers={"Authorization": f"Bearer {mal_access_token}"},
-            timeout=10,
-        )
-    except requests.exceptions.RequestException as e:
-        logger.error(f"[exchange_oauth_token] Could not reach MAL user endpoint: {e}")
-        return Response({"error": "Could not reach MyAnimeList. Please try again."}, status=502)
-
+    user_info_response = mal.get_with_token(token_json["access_token"], "/users/@me")
     if user_info_response.status_code != 200:
         logger.error(f"[exchange_oauth_token] Failed to fetch MAL user info: {user_info_response.status_code}")
         return Response({"error": "Could not read your MyAnimeList profile."}, status=400)
@@ -207,8 +176,8 @@ def exchange_oauth_token(request):
         profile, _ = UserProfile.objects.get_or_create(user=user)
         logger.info(f"[exchange_oauth_token] User {'created' if user_created else 'found'}: {user.username}")
 
-        # Store MAL access token in profile
-        profile.mal_access_token = mal_access_token
+        # Store the MAL access token, refresh token and expiry time
+        mal.set_tokens(profile, token_json)
 
         # Store profile data
         profile.name = mal_user.get("name") or mal_username
@@ -250,28 +219,23 @@ def refresh_jwt_token(request):
     """
     from rest_framework_simplejwt.tokens import RefreshToken
     from rest_framework_simplejwt.exceptions import TokenError
-    
-    logger.info(f"[refresh_jwt_token] Token refresh requested")
-    
+
     refresh_token = request.data.get('refresh')
-    
+
     if not refresh_token:
-        logger.error(f"[refresh_jwt_token] No refresh token provided")
         return Response({"error": "Refresh token required"}, status=400)
-    
+
     try:
         # Validate and decode refresh token
         refresh = RefreshToken(refresh_token)
-        
+
         # Generate new access token
         new_access_token = str(refresh.access_token)
-        
-        logger.info(f"[refresh_jwt_token] New access token generated for user: {refresh.get('user_id')}")
-        
+
         return Response({
             "access": new_access_token,
         }, status=200)
-        
+
     except TokenError as e:
         logger.error(f"[refresh_jwt_token] Invalid refresh token: {str(e)}")
         return Response({"error": "Invalid or expired refresh token"}, status=401)
@@ -283,25 +247,8 @@ def refresh_jwt_token(request):
 @permission_classes([IsAuthenticated])
 def sync_mal_profile(request):
     """ Fetch from MAL and store in UserProfile """
-    logger.info(f"[sync_mal_profile] User: {request.user.username}")
-    
-    try:
-        profile = request.user.userprofile
-        token = profile.mal_access_token
-    except UserProfile.DoesNotExist:
-        logger.error(f"[sync_mal_profile] No profile found for user: {request.user.username}")
-        return Response({"error": "User profile not found"}, status=404)
-    
-    if not token:
-        logger.error(f"[sync_mal_profile] No MAL token for user: {request.user.username}")
-        return Response({"error": "Not authenticated with MAL"}, status=401)
+    data = mal_get(request.user, "/users/@me")
 
-    headers = {"Authorization": f"Bearer {token}"}
-    r = requests.get("https://api.myanimelist.net/v2/users/@me", headers=headers)
-    if r.status_code != 200:
-        return Response({"error": "MAL error", "details": r.text}, status=400)
-
-    data = r.json()
     prof = request.user.userprofile
     prof.name = data.get("name")
     prof.birthday = data.get("birthday")
@@ -316,8 +263,6 @@ def sync_mal_profile(request):
 @permission_classes([IsAuthenticated])
 def cached_mal_profile(request):
     """ Return the stored profile """
-    logger.info(f"[cached_mal_profile] User: {request.user.username}, Authenticated: {request.user.is_authenticated}")
-    
     try:
         prof = request.user.userprofile
         return Response({
@@ -331,7 +276,6 @@ def cached_mal_profile(request):
         logger.error(f"[cached_mal_profile] UserProfile does not exist for user: {request.user.username}")
         # Create profile if missing
         prof = UserProfile.objects.create(user=request.user)
-        logger.info(f"[cached_mal_profile] Created missing profile for user: {request.user.username}")
         return Response({
             "name": prof.name or request.user.username,
             "birthday": prof.birthday,
@@ -341,33 +285,13 @@ def cached_mal_profile(request):
         })
     except Exception as e:
         logger.error(f"[cached_mal_profile] Error: {str(e)}", exc_info=True)
-        return Response({"error": str(e)}, status=500)
+        return Response({"error": "Could not load your profile."}, status=500)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def sync_anime_list(request):
-    logger.info(f"[sync_anime_list] User: {request.user.username}")
-    
-    try:
-        profile = request.user.userprofile
-        access_token = profile.mal_access_token
-    except UserProfile.DoesNotExist:
-        logger.error(f"[sync_anime_list] No profile found")
-        return JsonResponse({"error": "User profile not found"}, status=404)
-    
-    if not access_token:
-        logger.error(f"[sync_anime_list] No MAL token")
-        return JsonResponse({"error": "Not authenticated with MAL"}, status=401)
-
-    headers = {"Authorization": f"Bearer {access_token}"}
-    url = "https://api.myanimelist.net/v2/users/@me/animelist"
-    params = {"fields": "list_status", "limit": 1000}
-    response = requests.get(url, headers=headers, params=params)
-
-    if response.status_code != 200:
-        return JsonResponse({"error": "Failed to fetch anime list", "details": response.text}, status=400)
-
-    anime_list = response.json().get("data", [])
+    data = mal_get(request.user, "/users/@me/animelist", {"fields": "list_status", "limit": 1000})
+    anime_list = data.get("data", [])
 
     AnimeEntry.objects.filter(user=request.user).delete()
 
@@ -393,7 +317,6 @@ def sync_anime_list(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_cached_anime_list(request):
-    logger.info(f"[get_cached_anime_list] User: {request.user.username} (ID: {request.user.id})")
     entries = AnimeEntry.objects.filter(user=request.user).values(
         "mal_id",
         "title",
@@ -406,86 +329,38 @@ def get_cached_anime_list(request):
         "finish_date",
         "last_updated",
     )
-    logger.info(f"[get_cached_anime_list] Found {len(entries)} entries")
-    
-    # If no entries, check profile status for debugging
-    if len(entries) == 0:
-        try:
-            profile = request.user.userprofile
-            has_token = bool(profile.mal_access_token)
-            logger.info(f"[get_cached_anime_list] 0 entries - Profile exists: True, Has MAL token: {has_token}")
-        except UserProfile.DoesNotExist:
-            logger.warning(f"[get_cached_anime_list] 0 entries - Profile missing for user {request.user.username}")
-    
     return JsonResponse(list(entries), safe=False)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def anime_detail(request, anime_id):
-    logger.info(f"[anime_detail] User: {request.user.username}, Anime ID: {anime_id}")
-    
-    try:
-        profile = request.user.userprofile
-        token = profile.mal_access_token
-    except UserProfile.DoesNotExist:
-        logger.error(f"[anime_detail] No profile found")
-        return Response({'error': 'User profile not found'}, status=404)
-    
-    if not token:
-        logger.error(f"[anime_detail] No MAL token")
-        return Response({'error': 'Not authenticated with MAL'}, status=401)
-
-    url = f'https://api.myanimelist.net/v2/anime/{anime_id}'
-    params = {
-      'fields': 'id,title,main_picture,alternative_titles,'
-                'start_date,end_date,synopsis,mean,rank,'
-                'popularity,num_list_users,num_scoring_users,'
-                'nsfw,created_at,updated_at,media_type,status,'
-                'genres,my_list_status,num_episodes,start_season,'
-                'broadcast,source,average_episode_duration,'
-                'rating,pictures,background,related_anime,'
-                'related_manga,recommendations,studios,statistics'
-    }
-    headers = {'Authorization': f'Bearer {token}'}
-    r = requests.get(url, headers=headers, params=params)
-    if r.status_code == 200:
-        return Response(r.json())
-    return Response({'error': 'MAL error', 'details': r.text}, status=r.status_code)
+    fields = (
+        'id,title,main_picture,alternative_titles,'
+        'start_date,end_date,synopsis,mean,rank,'
+        'popularity,num_list_users,num_scoring_users,'
+        'nsfw,created_at,updated_at,media_type,status,'
+        'genres,my_list_status,num_episodes,start_season,'
+        'broadcast,source,average_episode_duration,'
+        'rating,pictures,background,related_anime,'
+        'related_manga,recommendations,studios,statistics'
+    )
+    return Response(mal_get(request.user, f"/anime/{anime_id}", {"fields": fields}))
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def search_anime(request):
-    logger.info(f"[search_anime] User: {request.user.username}")
-    
+    query = (request.GET.get("q") or "").strip()
+
+    # MAL itself rejects searches shorter than 3 characters
+    if len(query) < 3:
+        return Response({"error": "Search needs at least 3 characters."}, status=400)
+
     try:
-        profile = request.user.userprofile
-        token = profile.mal_access_token
-    except UserProfile.DoesNotExist:
-        logger.error(f"[search_anime] No profile found")
-        return Response({"error": "User profile not found"}, status=404)
-    
-    if not token:
-        logger.error(f"[search_anime] No MAL token")
-        return Response({"error": "Not authenticated with MAL"}, status=401)
+        limit = max(1, min(int(request.GET.get("limit", 10)), 100))
+    except ValueError:
+        limit = 10
 
-    query = request.GET.get("q")
-    limit = request.GET.get("limit", 10)
-
-    if not query:
-        return Response({"error": "Missing search query"}, status=400)
-
-    url = "https://api.myanimelist.net/v2/anime"
-    headers = {"Authorization": f"Bearer {token}"}
-    params = {
-        "q": query,
-        "limit": limit
-    }
-
-    r = requests.get(url, headers=headers, params=params)
-    if r.status_code == 200:
-        return Response(r.json())
-    
-    return Response({"error": "MAL error", "details": r.text}, status=r.status_code)
+    return Response(mal_get(request.user, "/anime", {"q": query, "limit": limit}))
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -493,41 +368,19 @@ def get_stats_data(request):
     """
     Fetches detailed anime data from MAL for stats calculations
     """
-    logger.info(f"[get_stats_data] User: {request.user.username}")
-    
-    try:
-        profile = request.user.userprofile
-        token = profile.mal_access_token
-    except UserProfile.DoesNotExist:
-        logger.error(f"[get_stats_data] No profile found")
-        return Response({"error": "User profile not found"}, status=404)
-    
-    if not token:
-        logger.error(f"[get_stats_data] No MAL token")
-        return Response({"error": "Not authenticated with MAL"}, status=401)
-
-    # Get user's anime list with detailed fields
-    headers = {"Authorization": f"Bearer {token}"}
-    url = "https://api.myanimelist.net/v2/users/@me/animelist"
-    params = {
+    data = mal_get(request.user, "/users/@me/animelist", {
         "fields": "list_status,genres,studios,num_episodes,average_episode_duration,media_type",
         "limit": 1000,
-        "status": "completed"  # Focus on completed anime for accurate stats
-    }
-    
-    response = requests.get(url, headers=headers, params=params)
-    
-    if response.status_code != 200:
-        return Response({"error": "Failed to fetch anime list", "details": response.text}, status=400)
-    
-    anime_data = response.json().get("data", [])
-    
+        "status": "completed",  # Focus on completed anime for accurate stats
+    })
+    anime_data = data.get("data", [])
+
     # Process data for stats
     stats_list = []
     for item in anime_data:
         anime = item["node"]
         list_status = item.get("list_status", {})
-        
+
         stats_list.append({
             "title": anime.get("title"),
             "score": list_status.get("score", 0),
@@ -537,7 +390,7 @@ def get_stats_data(request):
             "average_episode_duration": anime.get("average_episode_duration", 0),
             "media_type": anime.get("media_type", ""),
         })
-    
+
     return Response(stats_list)
 
 
@@ -549,39 +402,32 @@ gemini_client = None
 if GEMINI_API_KEY:
     gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 
+def mal_get_or_empty(user, path, params):
+    """
+    For recommendation sections: if MAL fails for one section, that section
+    comes back empty instead of the whole page failing. An expired MAL login
+    is not swallowed here, so it still reaches the frontend.
+    """
+    try:
+        return mal_get(user, path, params)
+    except (MalUnavailable, MalNotFound):
+        return {}
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_recommendations(request):
     """
     Main recommendation endpoint - generates personalized anime recommendations
     """
-    logger.info(f"[get_recommendations] User: {request.user.username}")
-    
-    try:
-        profile = request.user.userprofile
-        token = profile.mal_access_token
-    except UserProfile.DoesNotExist:
-        logger.error(f"[get_recommendations] No profile found")
-        return Response({"error": "User profile not found"}, status=404)
-    
-    if not token:
-        logger.error(f"[get_recommendations] No MAL token")
-        return Response({"error": "Not authenticated with MAL"}, status=401)
+    user = request.user
 
     # Get user's completed/high-rated anime
-    headers = {"Authorization": f"Bearer {token}"}
-    url = "https://api.myanimelist.net/v2/users/@me/animelist"
-    params = {
+    user_anime = mal_get(user, "/users/@me/animelist", {
         "fields": "list_status,genres,studios,themes,media_type",
         "limit": 1000,
-        "status": "completed"
-    }
-    
-    response = requests.get(url, headers=headers, params=params)
-    if response.status_code != 200:
-        return Response({"error": "Failed to fetch anime list"}, status=400)
-    
-    user_anime = response.json().get("data", [])
+        "status": "completed",
+    }).get("data", [])
     
     # Extract user preferences
     watched_ids = set()
@@ -637,7 +483,7 @@ def get_recommendations(request):
     
     # 1. Because you liked X (ONE random anchor, changes on regenerate)
     if anchor:
-        similar = find_similar_anime(token, anchor, watched_ids)
+        similar = find_similar_anime(user, anchor, watched_ids)
         if similar:
             recommendations["because_you_liked"].append({
                 "anchor": anchor["title"],
@@ -647,7 +493,7 @@ def get_recommendations(request):
     # 2. From your favorite genres
     if top_genres:
         genre_name = top_genres[0][0]
-        genre_anime = search_by_genre(token, genre_name, watched_ids, limit=10)
+        genre_anime = search_by_genre(user, genre_name, watched_ids, limit=10)
         recommendations["from_genres"] = {
             "genre": genre_name,
             "anime": genre_anime
@@ -656,7 +502,7 @@ def get_recommendations(request):
     # 3. From your favorite studios
     if top_studios:
         studio_name = top_studios[0][0]
-        studio_anime = search_by_studio(token, studio_name, watched_ids, limit=8)
+        studio_anime = search_by_studio(user, studio_name, watched_ids, limit=8)
         recommendations["from_studios"] = {
             "studio": studio_name,
             "anime": studio_anime
@@ -664,7 +510,7 @@ def get_recommendations(request):
     
     # 4. Hidden gems (high-rated but less popular)
     if top_genres:
-        gems = find_hidden_gems(token, [g[0] for g in top_genres], watched_ids)
+        gems = find_hidden_gems(user, [g[0] for g in top_genres], watched_ids)
         recommendations["hidden_gems"] = gems[:8]
     
     return Response(recommendations)
@@ -791,12 +637,10 @@ def calculate_similarity_score(anchor_anime, candidate_anime):
     return similarity
 
 
-def find_similar_anime(token, anchor_anime, watched_ids):
+def find_similar_anime(user, anchor_anime, watched_ids):
     """Find anime similar to the anchor by fetching popular anime and filtering by genre"""
     import json
     from pathlib import Path
-    
-    headers = {"Authorization": f"Bearer {token}"}
     
     # Search using anchor's main genre
     if not anchor_anime.get("genres"):
@@ -828,7 +672,6 @@ def find_similar_anime(token, anchor_anime, watched_ids):
     
     # Fetch top-ranked anime by popularity and filter by genre
     all_candidates = {}
-    ranking_url = "https://api.myanimelist.net/v2/anime/ranking"
     
     # Fetch popular anime (increased limit for better coverage)
     params = {
@@ -838,10 +681,10 @@ def find_similar_anime(token, anchor_anime, watched_ids):
     }
     
     search_results = []
-    response = requests.get(ranking_url, headers=headers, params=params)
-    
-    if response.status_code == 200:
-        for item in response.json().get("data", []):
+    ranking = mal_get_or_empty(user, "/anime/ranking", params)
+
+    if ranking:
+        for item in ranking.get("data", []):
             anime = item["node"]
             anime_genre_ids = [g.get("id") for g in anime.get("genres", [])]
             
@@ -1024,21 +867,15 @@ def extract_base_title(title):
     return base.strip()
 
 
-def search_by_genre(token, genre_name, watched_ids, limit=10):
+def search_by_genre(user, genre_name, watched_ids, limit=10):
     """Search anime by genre"""
-    headers = {"Authorization": f"Bearer {token}"}
-    url = "https://api.myanimelist.net/v2/anime"
     params = {
         "q": genre_name,
         "limit": 50,
         "fields": "id,title,main_picture,mean,popularity,genres,num_list_users"
     }
     
-    response = requests.get(url, headers=headers, params=params)
-    if response.status_code != 200:
-        return []
-    
-    results = response.json().get("data", [])
+    results = mal_get_or_empty(user, "/anime", params).get("data", [])
     anime_list = []
     seen_base_titles = set()
     
@@ -1074,21 +911,15 @@ def search_by_genre(token, genre_name, watched_ids, limit=10):
     return sorted(anime_list, key=lambda x: x["score"], reverse=True)[:limit]
 
 
-def search_by_studio(token, studio_name, watched_ids, limit=8):
+def search_by_studio(user, studio_name, watched_ids, limit=8):
     """Search anime by studio"""
-    headers = {"Authorization": f"Bearer {token}"}
-    url = "https://api.myanimelist.net/v2/anime"
     params = {
         "q": studio_name,
         "limit": 50,
         "fields": "id,title,main_picture,mean,studios,popularity,num_list_users"
     }
     
-    response = requests.get(url, headers=headers, params=params)
-    if response.status_code != 200:
-        return []
-    
-    results = response.json().get("data", [])
+    results = mal_get_or_empty(user, "/anime", params).get("data", [])
     anime_list = []
     seen_base_titles = set()
     
@@ -1123,11 +954,8 @@ def search_by_studio(token, studio_name, watched_ids, limit=8):
     return sorted(anime_list, key=lambda x: x["score"], reverse=True)[:limit]
 
 
-def find_hidden_gems(token, genres, watched_ids):
+def find_hidden_gems(user, genres, watched_ids):
     """Find highly-rated but less popular anime"""
-    headers = {"Authorization": f"Bearer {token}"}
-    url = "https://api.myanimelist.net/v2/anime"
-    
     all_gems = []
     seen_base_titles = set()
     
@@ -1138,9 +966,9 @@ def find_hidden_gems(token, genres, watched_ids):
             "fields": "id,title,main_picture,mean,popularity,num_list_users"
         }
         
-        response = requests.get(url, headers=headers, params=params)
-        if response.status_code == 200:
-            results = response.json().get("data", [])
+        found = mal_get_or_empty(user, "/anime", params)
+        if found:
+            results = found.get("data", [])
             for item in results:
                 anime = item["node"]
                 if anime["id"] not in watched_ids:
