@@ -8,7 +8,6 @@ import Footer from '../components/Footer';
 import LoadingScreen from '../components/LoadingScreen';
 import { API_URL } from '../config';
 import { authFetch } from '../utils/fetch';
-import { getAuthHeader } from '../utils/auth';
 
 /** One recommended show, as the backend sends it */
 type Pick = {
@@ -32,9 +31,8 @@ type Recommendations = {
 type ChatMessage = {
     role: 'user' | 'assistant';
     content: string;
+    picks?: Pick[];  // shows the assistant suggested, as clickable cards
 };
-
-type UserAnime = { title: string; score: number; status: string };
 
 /** Poster, score badge, title and the reason it was picked */
 const PickCard = ({ pick, accent = 'purple', badge }: { pick: Pick; accent?: 'purple' | 'emerald'; badge?: React.ReactNode }) => (
@@ -104,7 +102,6 @@ const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: React.Dispatch<Reac
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
     const [userInput, setUserInput] = useState('');
     const [chatLoading, setChatLoading] = useState(false);
-    const [userAnimeList, setUserAnimeList] = useState<UserAnime[]>([]);
     const chatEndRef = useRef<HTMLDivElement>(null);
     const posthog = usePostHog();
 
@@ -137,15 +134,6 @@ const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: React.Dispatch<Reac
 
     useEffect(() => {
         loadRecommendations(false);
-
-        // The chat sends some of the user's favourites along as context
-        (async () => {
-            const res = await authFetch(`${API_URL}/api/cached-animelist/`);
-            if (res.ok) {
-                const data: UserAnime[] = await res.json();
-                setUserAnimeList(data.filter((anime) => anime.status === 'completed' && anime.score >= 7));
-            }
-        })();
     }, [loadRecommendations]);
 
     useEffect(() => {
@@ -162,49 +150,49 @@ const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: React.Dispatch<Reac
         if (!userInput.trim() || chatLoading) return;
 
         const userMessage = userInput.trim();
+        const history: ChatMessage[] = [...chatMessages, { role: 'user', content: userMessage }];
         setUserInput('');
-        setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+        setChatMessages(history);
         setChatLoading(true);
 
-        try {
-            const context = userAnimeList.slice(0, 10).map(anime => ({
-                title: anime.title,
-                score: anime.score
-            }));
-            const suggestions = (recommendations?.top_picks ?? []).slice(0, 10).map(a => ({ title: a.title }));
+        const reply = (content: string, picks: Pick[] = []) =>
+            setChatMessages(prev => [...prev, { role: 'assistant', content, picks }]);
 
-            const res = await fetch(`${API_URL}/api/ai-chat/`, {
+        try {
+            // The server builds the user's taste and the candidate list itself.
+            // We only send the conversation. Earlier suggestions are appended as
+            // text so the AI knows what it already recommended.
+            const messages = history.map((m) => ({
+                role: m.role,
+                content: m.picks?.length
+                    ? `${m.content}
+
+(Suggested: ${m.picks.map((p) => p.title).join(', ')})`
+                    : m.content,
+            }));
+
+            const res = await authFetch(`${API_URL}/api/ai-chat/`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...getAuthHeader()
-                },
-                body: JSON.stringify({
-                    message: userMessage,
-                    context,
-                    suggestions
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ messages }),
             });
 
             if (res.ok) {
-                const data = await res.json();
-                setChatMessages(prev => [...prev, { role: 'assistant', content: data.message }]);
+                const data: { message: string; picks: Pick[] } = await res.json();
+                reply(data.message, data.picks);
 
                 posthog?.capture('ai_chat_message_sent', {
                     message_length: userMessage.length,
-                    context_count: context.length,
+                    turn: history.length,
+                    picks_count: data.picks.length,
                 });
+            } else if (res.status === 429) {
+                reply("You've reached the chat limit for now (20 messages an hour). Try again later.");
             } else {
-                setChatMessages(prev => [...prev, {
-                    role: 'assistant',
-                    content: 'Sorry, I had trouble processing that. Please try again!'
-                }]);
+                reply('Sorry, I had trouble processing that. Please try again!');
             }
         } catch {
-            setChatMessages(prev => [...prev, {
-                role: 'assistant',
-                content: 'Oops! Something went wrong. Please try again.'
-            }]);
+            reply('Oops! Something went wrong. Please try again.');
         } finally {
             setChatLoading(false);
         }
@@ -348,11 +336,11 @@ const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: React.Dispatch<Reac
                         Ask Our AI Assistant
                     </h2>
                     <p className="text-purple-300 mb-6">
-                        Want something specific? Ask me and I'll help you find the perfect anime from our recommendations!
+                        Want something specific? I know your list and your taste, and only suggest shows you haven't seen.
                     </p>
 
                     {/* Chat Messages */}
-                    <div className="bg-purple-900/30 rounded-lg p-4 mb-4 max-h-96 overflow-y-auto">
+                    <div className="bg-purple-900/30 rounded-lg p-4 mb-4 max-h-[36rem] overflow-y-auto">
                         {chatMessages.length === 0 ? (
                             <div className="text-center text-purple-400 py-8">
                                 <p className="mb-4">Try asking:</p>
@@ -365,7 +353,8 @@ const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: React.Dispatch<Reac
                         ) : (
                             <div className="space-y-4">
                                 {chatMessages.map((msg, idx) => (
-                                    <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    <div key={idx}>
+                                    <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                         <div className={`max-w-[80%] rounded-lg p-3 ${
                                             msg.role === 'user'
                                                 ? 'bg-gradient-to-r from-pink-500 to-purple-500'
@@ -379,6 +368,14 @@ const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: React.Dispatch<Reac
                                                 </div>
                                             )}
                                         </div>
+                                    </div>
+                                    {msg.picks && msg.picks.length > 0 && (
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-3">
+                                            {msg.picks.map((pick) => (
+                                                <PickCard key={pick.id} pick={pick} />
+                                            ))}
+                                        </div>
+                                    )}
                                     </div>
                                 ))}
                                 {chatLoading && (
