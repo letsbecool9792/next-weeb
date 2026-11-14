@@ -119,8 +119,9 @@
         @apply flex min-h-screen items-center justify-center px-4;
     }
 
+    /* Same look as .card (Tailwind v4 cannot @apply one custom class inside another) */
     .overlay-box {
-        @apply card text-center;
+        @apply rounded-2xl border border-white/10 bg-white/[0.04] p-6 text-center backdrop-blur-md;
     }
 
     /* Markdown in AI chat replies */

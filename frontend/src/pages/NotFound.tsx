@@ -1,69 +1,42 @@
-import { useNavigate } from 'react-router-dom';
-import { Home, ArrowLeft } from 'lucide-react';
-import Footer from '../components/Footer';
+import { Link, useNavigate } from 'react-router-dom';
+import { motion } from 'motion/react';
+import { ArrowLeft, Home } from 'lucide-react';
+import PosterWall from '../components/ui/PosterWall';
+import { useAuth } from '../auth/useAuth';
 
 const NotFound = () => {
     const navigate = useNavigate();
+    const { isLoggedIn } = useAuth();
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-gray-900 to-fuchsia-950 text-white flex flex-col">
-            
-            <div className="flex-1 flex items-center justify-center px-4 pt-16">
-                <div className="text-center max-w-2xl">
-                    {/* 404 Number */}
-                    <div className="mb-8">
-                        <h1 className="text-9xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
-                            404
-                        </h1>
-                        <div className="flex justify-center gap-4 mt-4">
-                            <div className="w-16 h-1 bg-gradient-to-r from-pink-500 to-purple-500 rounded-full"></div>
-                            <div className="w-16 h-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"></div>
-                        </div>
-                    </div>
+        <div className="page-bg relative flex items-center justify-center overflow-hidden px-4">
+            <PosterWall className="opacity-15" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgb(11_6_20/0.7)_0%,rgb(11_6_20)_70%)]" />
 
-                    {/* Message */}
-                    <h2 className="text-3xl font-bold mb-4">Page Not Found</h2>
-                    <p className="text-lg opacity-80 mb-8">
-                        Oops! Looks like this page doesn't exist in our database. 
-                        The page you're looking for has wandered into another dimension.
+            <div className="relative z-10 max-w-xl text-center">
+                <motion.h1
+                    initial={{ opacity: 0, scale: 0.5, rotate: -8 }}
+                    animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                    transition={{ type: 'spring', stiffness: 160, damping: 12 }}
+                    className="text-[9rem] font-bold leading-none text-gradient-animated sm:text-[12rem]"
+                >
+                    404
+                </motion.h1>
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+                    <h2 className="mt-2 text-3xl font-bold">This episode doesn't exist</h2>
+                    <p className="mt-4 text-lg text-purple-200/80">
+                        Looks like this page wandered into another dimension. Maybe it's on a filler arc?
                     </p>
-
-                    {/* Anime-themed message */}
-                    <div className="card mb-8 inline-block">
-                        <p className="text-sm opacity-70">
-                            "404: Anime Not Found - Maybe it's on a filler arc?" 
-                        </p>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                        <button 
-                            onClick={() => navigate(-1)}
-                            className="btn-secondary gap-2"
-                        >
-                            <ArrowLeft size={20} />
-                            Go Back
+                    <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
+                        <button onClick={() => navigate(-1)} className="btn-secondary px-6 py-3">
+                            <ArrowLeft className="h-4 w-4" /> Go back
                         </button>
-                        
-                        <button 
-                            onClick={() => navigate('/')}
-                            className="btn-primary gap-2"
-                        >
-                            <Home size={20} />
-                            Home Page
-                        </button>
+                        <Link to={isLoggedIn ? '/dashboard' : '/'} className="btn-primary px-6 py-3">
+                            <Home className="h-4 w-4" /> {isLoggedIn ? 'Home' : 'Main page'}
+                        </Link>
                     </div>
-
-                    {/* Decorative Elements */}
-                    <div className="mt-12 flex justify-center gap-8 opacity-50">
-                        <div className="w-24 h-24 rounded-full bg-purple-500/20 blur-2xl"></div>
-                        <div className="w-24 h-24 rounded-full bg-pink-500/20 blur-2xl"></div>
-                        <div className="w-24 h-24 rounded-full bg-blue-500/20 blur-2xl"></div>
-                    </div>
-                </div>
+                </motion.div>
             </div>
-
-            <Footer />
         </div>
     );
 };
