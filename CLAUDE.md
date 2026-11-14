@@ -91,12 +91,14 @@ Status per step: **[x] done** · local = owner tested locally · render = owner 
 
 - **Look:** streaming service (Crunchyroll/Netflix): blurred cover-art banners, horizontal poster rows, art does the talking.
 - **Colours:** keep the original palette: dark ink background (`--color-ink`), purple/pink/fuchsia gradients. Do not introduce new brand colours.
-- **Font:** Space Grotesk (self-hosted via `@fontsource-variable/space-grotesk`).
+- **Fonts:** Space Grotesk for everything (`@fontsource-variable/space-grotesk`); Silkscreen pixel font for the wordmark, episode numbers, tickers and card codes; Dela Gothic One for kanji, subset to the characters in `src/assets/fonts/` (add a new kanji there by re-subsetting, or it falls back to the system Japanese font).
+- **Logo:** L11 Pixel Heart (`components/brand/PixelHeart.tsx`, `Logo.tsx`, `public/favicon.svg`) with NEXTWEEB in Silkscreen.
+- **Signature elements (owner's picks):** holo trading cards (`ui/HoloCard`), kanji markers behind page titles (`ui/Kanji`: おかえり Home, 発見 Discover, 一覧 My list, 探索 Search, 統計 Stats, 私 Profile, 入口 login, 迷子 404; a show's Japanese title on its page), ticker tapes (`ui/Ticker`), episode title cards for section headings (`ui/TitleCard`, `Row ep=`), cursor spotlight on every `.card` (`utils/useSpotlight.ts`). No romaji or translation captions under kanji.
 - **Navigation:** top bar (transparent over banners, frosted on scroll) with an always-present search box (`/` or Ctrl+K). Dashboard ("Home") and Recommendations ("Discover") stay separate pages.
-- **Landing:** tilted, drifting wall of real anime covers behind the headline.
+- **Landing:** hero E, "次 editorial": real covers drift inside a giant 次 (the dark layer uses `mix-blend-multiply`, so only the glyph shows the covers), headline H2 "Your next favourite anime is already waiting.", crossing tickers; features are four "episodes".
 - **Motion:** lots (the owner's choice), via `motion` (`motion/react`). Page transitions, staggered card entrances, parallax banners, count-ups, hover lifts. `MotionConfig reducedMotion="user"` and a CSS media query honour the OS "reduce motion" setting.
 
-Frontend building blocks (`frontend/src/components/`): `AppShell` (header, page transition, footer: wrap every logged-in page in it), `ui/HeroBanner`, `ui/Row`, `ui/PosterCard`, `ui/PosterWall`, `ui/PageHeader`, `ui/Skeleton`, `ui/CountUp`, `ui/ScoreRing`, `ui/Reveal`, `SearchBox`, `ChatPanel`, `Poster` (image with fallback), `ErrorState`. Shared types in `src/types.ts`, helpers in `src/utils/format.ts`. CSS component classes (`card`, `btn-primary`, `btn-secondary`, `chip`, `input`, `select-field`, `skeleton`, `text-gradient`) live in `src/index.css`; Tailwind v4 cannot `@apply` one of these inside another.
+Frontend building blocks (`frontend/src/components/`): `AppShell` (layout route in `routes.tsx`: header, page fade, footer; pages render only their content), `ui/HeroBanner`, `ui/Row`, `ui/PosterCard`, `ui/PosterWall`, `ui/PageHeader`, `ui/Skeleton`, `ui/CountUp`, `ui/ScoreRing`, `ui/Reveal`, `SearchBox`, `ChatPanel`, `Poster` (image with fallback), `ErrorState`. Shared types in `src/types.ts`, helpers in `src/utils/format.ts`. CSS component classes (`card`, `btn-primary`, `btn-secondary`, `chip`, `input`, `select-field`, `skeleton`, `text-gradient`) live in `src/index.css`; Tailwind v4 cannot `@apply` one of these inside another.
 
 Out of scope for now: writing changes back to MAL (list management).
 
