@@ -57,7 +57,7 @@ const AnimeList = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLogg
         setSyncing(true);
         const start = Date.now();
       
-        const res = await authFetch(`${API_URL}/api/sync-animelist/`);
+        const res = await authFetch(`${API_URL}/api/sync-animelist/`, { method: 'POST' });
         if (res.ok) {
           await loadAnime();
         }
@@ -82,7 +82,7 @@ const AnimeList = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLogg
         
             // 2) If cache was empty, sync from MAL:
             if (cacheData.length === 0) {
-                await authFetch(`${API_URL}/api/sync-animelist/`);
+                await authFetch(`${API_URL}/api/sync-animelist/`, { method: 'POST' });
                 // 3) Re-fetch cache after sync:
                 const updatedRes = await authFetch(`${API_URL}/api/cached-animelist/`);
                 const updatedData: AnimeEntry[] = updatedRes.ok ? await updatedRes.json() : [];

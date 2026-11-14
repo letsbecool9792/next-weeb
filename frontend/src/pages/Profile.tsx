@@ -34,7 +34,7 @@ const Profile = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
 		setSyncing(true);
 		const start = Date.now();
 
-		const res = await authFetch(`${API_URL}/api/sync-profile/`);
+		const res = await authFetch(`${API_URL}/api/sync-profile/`, { method: 'POST' });
 		if (res.ok) {
 			await loadProfile();
 		}

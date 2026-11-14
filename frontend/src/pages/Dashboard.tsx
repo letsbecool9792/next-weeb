@@ -65,10 +65,10 @@ const Dashboard = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
         setSyncing(true);
         
         // Sync profile
-        await authFetch(`${API_URL}/api/sync-profile/`);
+        await authFetch(`${API_URL}/api/sync-profile/`, { method: 'POST' });
 
         // Sync anime list
-        await authFetch(`${API_URL}/api/sync-animelist/`);
+        await authFetch(`${API_URL}/api/sync-animelist/`, { method: 'POST' });
 
         // Reload all data
         await loadData();
