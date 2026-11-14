@@ -1,5 +1,5 @@
 import requests
-import base64, os
+import os
 import logging
 import time
 from google import genai
@@ -16,7 +16,6 @@ from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAuthenticated
 
 from django.conf import settings
-from django.shortcuts import redirect
 from django.http import JsonResponse, HttpResponse
 
 from django.contrib.auth.models import User
@@ -113,201 +112,135 @@ def health_check(request):
         "message": "Server is running"
     }, status=200)
 
-# OAuth URLs
+# MyAnimeList OAuth endpoints
 MAL_AUTH_URL = "https://myanimelist.net/v1/oauth2/authorize"
 MAL_TOKEN_URL = "https://myanimelist.net/v1/oauth2/token"
 
-# Get CLIENT_ID and CLIENT_SECRET from settings safely
-CLIENT_ID = getattr(settings, "MAL_CLIENT_ID", None)
-CLIENT_SECRET = getattr(settings, "MAL_CLIENT_SECRET", None)
-REDIRECT_URI = getattr(settings, "MAL_REDIRECT_URI", None)
 
-# Frontend URL - use environment variable or default to localhost
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
-
-def generate_code_verifier():
-    """ Generate a secure random code_verifier """
-    return base64.urlsafe_b64encode(os.urandom(32)).decode("utf-8").rstrip("=")
-
-def generate_code_challenge(code_verifier):
-    """ For MAL, simply return the code_verifier """
-    return code_verifier
-
-def mal_login(request):
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def oauth_config(request):
     """
-    Redirects the user to MyAnimeList's OAuth authorization page.
-    Verifier will be passed back via URL (no session storage).
+    Public values the frontend needs to start a MAL login.
+
+    The browser builds the authorize URL itself, so the PKCE verifier and the
+    state value it generates never pass through this server. The redirect URI
+    comes from here so the authorize step and the token exchange below are
+    guaranteed to use the identical string, which MAL requires.
     """
-    code_verifier = generate_code_verifier()
-    code_challenge = generate_code_challenge(code_verifier)
+    return Response({
+        "authorize_url": MAL_AUTH_URL,
+        "client_id": settings.MAL_CLIENT_ID,
+        "redirect_uri": settings.MAL_REDIRECT_URI,
+    })
 
-    # Encode verifier in state parameter to get it back in callback
-    import urllib.parse
-    state = urllib.parse.quote(code_verifier)
-
-    auth_url = (
-        f"{MAL_AUTH_URL}?response_type=code"
-        f"&client_id={CLIENT_ID}"
-        f"&redirect_uri={REDIRECT_URI}"
-        f"&code_challenge={code_challenge}"
-        f"&code_challenge_method=plain"
-        f"&state={state}"
-    )
-
-    return redirect(auth_url)
-
-def mal_callback(request):
-    """
-    Handles the OAuth callback from MyAnimeList.
-    Passes code and verifier to frontend via URL (no session).
-    """
-    # Check for OAuth errors (user denied)
-    error = request.GET.get("error")
-    if error:
-        error_msg = request.GET.get("message", "Authorization denied")
-        logger.error(f"[mal_callback] User denied authorization: {error} - {error_msg}")
-        return redirect(f"{FRONTEND_URL}/get-started?error=access_denied")
-    
-    code = request.GET.get("code")
-    code_verifier = request.GET.get("state")  # Get verifier from state param
-
-    if not code:
-        logger.error(f"[mal_callback] No code in callback")
-        return redirect(f"{FRONTEND_URL}/get-started?error=no_code")
-
-    if not code_verifier:
-        logger.error(f"[mal_callback] Missing code_verifier in state param")
-        return redirect(f"{FRONTEND_URL}/get-started?error=missing_verifier")
-
-    # Redirect to frontend callback page with code and verifier
-    import urllib.parse
-    redirect_url = f"{FRONTEND_URL}/auth/callback?code={urllib.parse.quote(code)}&verifier={urllib.parse.quote(code_verifier)}"
-    return redirect(redirect_url)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def exchange_oauth_token(request):
     """
-    Exchanges the OAuth code for JWT tokens.
-    Called by frontend after OAuth redirect.
-    Code and verifier must be in request body (no session).
+    Second half of the MAL login.
+
+    The browser arrives with the one-time code MAL gave it and the verifier it
+    generated before leaving for MAL. We add the client secret (which only the
+    server knows) and trade all three for a MAL access token, then issue our
+    own JWTs for the matching user.
     """
     from rest_framework_simplejwt.tokens import RefreshToken
-    
-    logger.info(f"[exchange_oauth_token] START - Request from {request.META.get('HTTP_ORIGIN')}")
-    
-    # Get OAuth code and verifier from request body only
+
     oauth_code = request.data.get("code")
     code_verifier = request.data.get("verifier")
 
     if not oauth_code or not code_verifier:
-        logger.error(f"[exchange_oauth_token] Missing OAuth code or verifier")
-        return Response({"error": "No OAuth session found. Please log in again."}, status=400)
-    
-    # Exchange the authorization code for MAL access token
-    token_data = {
-        "client_id": CLIENT_ID,
-        "client_secret": CLIENT_SECRET,
-        "code": oauth_code,
-        "grant_type": "authorization_code",
-        "redirect_uri": REDIRECT_URI,
-        "code_verifier": code_verifier,
-    }
-    
-    logger.info(f"[exchange_oauth_token] Exchanging OAuth code for MAL token")
+        return Response({"error": "Missing authorization code or verifier."}, status=400)
 
+    # MAL only honours the code if the verifier matches the challenge the
+    # browser sent when this login started, and the redirect URI is the same.
     try:
-        response = requests.post(MAL_TOKEN_URL, data=token_data, timeout=10)
-        logger.info(f"[exchange_oauth_token] MAL token response status: {response.status_code}")
-        
-        if response.status_code != 200:
-            logger.error(f"[exchange_oauth_token] Token exchange failed: {response.status_code} - {response.text}")
-            return Response({
-                "error": "Failed to retrieve access token from MAL", 
-                "details": response.text
-            }, status=400)
+        response = requests.post(
+            MAL_TOKEN_URL,
+            data={
+                "client_id": settings.MAL_CLIENT_ID,
+                "client_secret": settings.MAL_CLIENT_SECRET,
+                "grant_type": "authorization_code",
+                "code": oauth_code,
+                "code_verifier": code_verifier,
+                "redirect_uri": settings.MAL_REDIRECT_URI,
+            },
+            timeout=10,
+        )
     except requests.exceptions.RequestException as e:
-        logger.error(f"[exchange_oauth_token] Token request exception: {str(e)}")
-        return Response({"error": "Failed to connect to MAL API", "details": str(e)}, status=500)
-    
-    # Get MAL access token
-    token_json = response.json()
-    mal_access_token = token_json.get("access_token")
-    logger.info(f"[exchange_oauth_token] MAL access token received")
+        logger.error(f"[exchange_oauth_token] Could not reach MAL token endpoint: {e}")
+        return Response({"error": "Could not reach MyAnimeList. Please try again."}, status=502)
 
-    # Fetch user info from MAL
+    if response.status_code != 200:
+        logger.error(f"[exchange_oauth_token] MAL refused the code: {response.status_code} - {response.text}")
+        return Response({"error": "MyAnimeList rejected the login. Please try again."}, status=400)
+
+    mal_access_token = response.json().get("access_token")
+
+    # Ask MAL who this token belongs to
     try:
         user_info_response = requests.get(
             "https://api.myanimelist.net/v2/users/@me",
             headers={"Authorization": f"Bearer {mal_access_token}"},
-            timeout=10
+            timeout=10,
         )
-        
-        logger.info(f"[exchange_oauth_token] User info response status: {user_info_response.status_code}")
-
-        if user_info_response.status_code != 200:
-            logger.error(f"[exchange_oauth_token] Failed to fetch MAL user info: {user_info_response.status_code}")
-            return Response({"error": "Failed to fetch MAL user info"}, status=400)
     except requests.exceptions.RequestException as e:
-        logger.error(f"[exchange_oauth_token] User info request exception: {str(e)}")
-        return Response({"error": "Failed to fetch user info from MAL", "details": str(e)}, status=500)
-    
+        logger.error(f"[exchange_oauth_token] Could not reach MAL user endpoint: {e}")
+        return Response({"error": "Could not reach MyAnimeList. Please try again."}, status=502)
+
+    if user_info_response.status_code != 200:
+        logger.error(f"[exchange_oauth_token] Failed to fetch MAL user info: {user_info_response.status_code}")
+        return Response({"error": "Could not read your MyAnimeList profile."}, status=400)
+
     mal_user = user_info_response.json()
     mal_username = mal_user.get("name")
-    
-    logger.info(f"[exchange_oauth_token] MAL user data received for: {mal_username}")
-    
+
     if not mal_username:
         logger.error(f"[exchange_oauth_token] No username in MAL response")
-        return Response({"error": "Invalid MAL user data"}, status=400)
+        return Response({"error": "Could not read your MyAnimeList profile."}, status=400)
 
     # Create/get Django user and profile
     try:
         user, user_created = User.objects.get_or_create(username=mal_username)
+        profile, _ = UserProfile.objects.get_or_create(user=user)
         logger.info(f"[exchange_oauth_token] User {'created' if user_created else 'found'}: {user.username}")
 
-        profile, profile_created = UserProfile.objects.get_or_create(user=user)
-        logger.info(f"[exchange_oauth_token] Profile {'created' if profile_created else 'found'}")
-        
         # Store MAL access token in profile
         profile.mal_access_token = mal_access_token
-        
+
         # Store profile data
         profile.name = mal_user.get("name") or mal_username
         profile.birthday = mal_user.get("birthday")
         profile.location = mal_user.get("location")
         profile.joined_at = mal_user.get("joined_at")
-        
+
         # Extract picture URL
         picture_data = mal_user.get("picture")
         if picture_data and isinstance(picture_data, dict):
             profile.picture = picture_data.get("medium") or picture_data.get("large")
         elif isinstance(picture_data, str):
             profile.picture = picture_data
-            
+
         profile.save()
-        logger.info(f"[exchange_oauth_token] Profile saved: name={profile.name}")
 
         # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
-        access_token = str(refresh.access_token)
-        refresh_token = str(refresh)
-        
-        logger.info(f"[exchange_oauth_token] JWT tokens generated for user: {user.username}")
-        
+
         return Response({
-            "access": access_token,
-            "refresh": refresh_token,
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
             "user": {
                 "username": user.username,
                 "name": profile.name,
                 "picture": profile.picture,
             }
         }, status=200)
-        
+
     except Exception as e:
         logger.error(f"[exchange_oauth_token] Exception: {str(e)}", exc_info=True)
-        return Response({"error": "Internal server error", "details": str(e)}, status=500)
+        return Response({"error": "Something went wrong on our side. Please try again."}, status=500)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])

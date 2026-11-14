@@ -54,10 +54,15 @@ if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 
 
+# Where the React app lives. Used for CORS and for the OAuth redirect below.
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:5173').rstrip('/')
+
 # the mal stuff from the mal app thingy
 MAL_CLIENT_ID = os.environ['MAL_CLIENT_ID']
 MAL_CLIENT_SECRET = os.environ['MAL_CLIENT_SECRET']
-MAL_REDIRECT_URI = os.environ['MAL_REDIRECT_URI']
+# After the user approves on MAL, MAL sends the browser back to this frontend
+# page. It must be registered in the MAL app's config, character for character.
+MAL_REDIRECT_URI = f"{FRONTEND_URL}/auth/callback"
 
 
 # Application definition
@@ -99,8 +104,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://next-weeb.vercel.app",  # Production frontend
 ]
 
-FRONTEND_URL = os.environ.get('FRONTEND_URL', '')
-if FRONTEND_URL and FRONTEND_URL not in CORS_ALLOWED_ORIGINS:
+if FRONTEND_URL not in CORS_ALLOWED_ORIGINS:
     CORS_ALLOWED_ORIGINS.append(FRONTEND_URL)
 
 # Production-only hardening. Skipped locally because the dev server is plain HTTP.

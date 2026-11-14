@@ -1,5 +1,5 @@
 from django.urls import path, re_path
-from .views import mal_login, mal_callback, exchange_oauth_token, sync_mal_profile, cached_mal_profile
+from .views import oauth_config, exchange_oauth_token, sync_mal_profile, cached_mal_profile
 from .views import sync_anime_list, get_cached_anime_list
 from .views import anime_detail, search_anime, get_stats_data, health_check
 from .views import get_recommendations, ai_recommendation_chat, posthog_proxy, refresh_jwt_token
@@ -12,8 +12,7 @@ urlpatterns = [
     re_path(r'^posthog/(?P<path>.*)$', posthog_proxy, name='posthog_proxy'),
 
     # OAuth and JWT auth
-    path('login/', mal_login, name='mal_login'),
-    path('callback/', mal_callback, name='mal_callback'),
+    path('oauth-config/', oauth_config, name='oauth_config'),
     path('exchange-token/', exchange_oauth_token, name='exchange_oauth_token'),
     path('token/refresh/', refresh_jwt_token, name='refresh_jwt_token'),
 
