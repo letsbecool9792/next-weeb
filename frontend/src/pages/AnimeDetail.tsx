@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { ArrowLeft, ExternalLink, Users, Trophy, TrendingUp, Heart, Link2 } from 'lucide-react';
 import { usePostHog } from 'posthog-js/react';
-import AppShell from '../components/AppShell';
 import ErrorState from '../components/ErrorState';
 import HeroBanner from '../components/ui/HeroBanner';
 import Row from '../components/ui/Row';
@@ -69,46 +68,54 @@ const AnimeDetail = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<'not_found' | 'failed' | null>(null);
     const [expanded, setExpanded] = useState(false);
+    // A ref, not a dependency: the PostHog client can change identity once it
+    // loads, which used to fetch the page a second time.
     const posthog = usePostHog();
+    const posthogRef = useRef(posthog);
+    posthogRef.current = posthog;
 
-    const load = useCallback(async () => {
+    // isCurrent() turns false when another show was opened or the page was left
+    const load = useCallback(async (isCurrent: () => boolean = () => true) => {
         setLoading(true);
         setError(null);
         setExpanded(false);
         try {
             const res = await authFetch(`${API_URL}/api/anime/${anime_id}/`);
+            if (!isCurrent()) return;
             if (res.status === 404) {
                 setError('not_found');
                 return;
             }
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data: Detail = await res.json();
+            if (!isCurrent()) return;
             setDetail(data);
-            window.scrollTo({ top: 0 });
 
-            posthog?.capture('anime_detail_viewed', { anime_id: data.id, anime_title: data.title, anime_score: data.mean });
+            posthogRef.current?.capture('anime_detail_viewed', { anime_id: data.id, anime_title: data.title, anime_score: data.mean });
         } catch {
-            setError('failed');
+            if (isCurrent()) setError('failed');
         } finally {
-            setLoading(false);
+            if (isCurrent()) setLoading(false);
         }
-    }, [anime_id, posthog]);
+    }, [anime_id]);
 
     useEffect(() => {
-        load();
+        let current = true;
+        load(() => current);
+        return () => { current = false; };
     }, [load]);
 
-    if (loading) return <AppShell><HeroSkeleton /></AppShell>;
+    if (loading) return <><HeroSkeleton /></>;
 
     if (error === 'failed') return (
-        <AppShell>
+        <>
             <div className="pt-24" />
-            <ErrorState message={LOAD_ERROR} onRetry={load} />
-        </AppShell>
+            <ErrorState message={LOAD_ERROR} onRetry={() => load()} />
+        </>
     );
 
     if (!detail) return (
-        <AppShell>
+        <>
             <div className="overlay-center">
                 <div className="overlay-box max-w-md">
                     <p className="text-xl font-semibold">Anime not found.</p>
@@ -116,7 +123,7 @@ const AnimeDetail = () => {
                     <Link to="/animelist" className="btn-primary mt-6">Back to my list</Link>
                 </div>
             </div>
-        </AppShell>
+        </>
     );
 
     const minutesPerEpisode = detail.average_episode_duration ? Math.round(detail.average_episode_duration / 60) : null;
@@ -140,7 +147,7 @@ const AnimeDetail = () => {
     ];
 
     return (
-        <AppShell>
+        <>
             <HeroBanner
                 key={detail.id}
                 image={detail.main_picture?.large ?? detail.main_picture?.medium}
@@ -319,7 +326,7 @@ const AnimeDetail = () => {
                     ))}
                 </Row>
             </div>
-        </AppShell>
+        </>
     );
 };
 

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Award, BarChart2, Building2, Clock, Film, PieChart as PieIcon, Star, TrendingUp } from 'lucide-react';
 import { motion } from 'motion/react';
-import AppShell from '../components/AppShell';
 import ErrorState from '../components/ErrorState';
 import PageHeader from '../components/ui/PageHeader';
 import Row from '../components/ui/Row';
@@ -71,7 +70,7 @@ const Stats = () => {
 
     if (loading) {
         return (
-            <AppShell>
+            <>
                 {header}
                 <div className="grid grid-cols-2 gap-4 px-4 sm:px-8 lg:grid-cols-4">
                     {Array.from({ length: 4 }, (_, i) => <div key={i} className="skeleton h-28" />)}
@@ -79,13 +78,13 @@ const Stats = () => {
                 <div className="mt-6 grid gap-6 px-4 sm:px-8 lg:grid-cols-2">
                     {Array.from({ length: 4 }, (_, i) => <div key={i} className="skeleton h-80" />)}
                 </div>
-            </AppShell>
+            </>
         );
     }
 
     if (error || animeList.length === 0) {
         return (
-            <AppShell>
+            <>
                 {header}
                 {error ? (
                     <ErrorState message={error} onRetry={load} />
@@ -94,7 +93,7 @@ const Stats = () => {
                         Stats are built from the shows you've completed. Mark a few as completed on MyAnimeList, then sync.
                     </div>
                 )}
-            </AppShell>
+            </>
         );
     }
 
@@ -120,7 +119,7 @@ const Stats = () => {
     ];
 
     return (
-        <AppShell>
+        <>
             {header}
 
             <div className="mb-8 grid grid-cols-2 gap-4 px-4 sm:px-8 lg:grid-cols-4">
@@ -227,7 +226,7 @@ const Stats = () => {
                     <PosterCard key={a.mal_id} to={`/anime/${a.mal_id}`} title={a.title} image={a.image} score={10} />
                 ))}
             </Row>
-        </AppShell>
+        </>
     );
 };
 

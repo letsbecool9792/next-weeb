@@ -16,7 +16,7 @@ const Footer = () => (
             </div>
             <div className="flex gap-6 text-sm text-purple-200/70">
                 <a href="https://github.com/letsbecool9792/next-weeb" className="transition hover:text-white">GitHub</a>
-                <a href="https://letsbecool.vercel.app" className="transition hover:text-white">Contact</a>
+                <a href="https://suparno.me" className="transition hover:text-white">Contact</a>
                 <a href="https://myanimelist.net" className="transition hover:text-white">MyAnimeList</a>
             </div>
         </div>

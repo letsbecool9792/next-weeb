@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { RefreshCw, Calendar, MapPin, Clock, ExternalLink } from 'lucide-react';
-import AppShell from '../components/AppShell';
 import ErrorState from '../components/ErrorState';
 import Reveal from '../components/ui/Reveal';
 import { API_URL } from '../config';
@@ -63,7 +62,7 @@ const Profile = () => {
     ];
 
     return (
-        <AppShell>
+        <>
             {/* Banner: the profile picture, blurred and enlarged, behind everything */}
             <section className="relative h-72 overflow-hidden">
                 {profile?.picture ? (
@@ -152,7 +151,7 @@ const Profile = () => {
                     </>
                 )}
             </div>
-        </AppShell>
+        </>
     );
 };
 

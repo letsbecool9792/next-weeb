@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Search, Sparkles } from 'lucide-react';
 import { usePostHog } from 'posthog-js/react';
-import AppShell from '../components/AppShell';
 import PageHeader from '../components/ui/PageHeader';
 import PosterCard from '../components/ui/PosterCard';
 import { GridSkeleton } from '../components/ui/Skeleton';
@@ -38,7 +37,10 @@ const SearchAnime = () => {
     const [results, setResults] = useState<SearchResult[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    // A ref, not a dependency, so PostHog finishing loading does not re-run the search
     const posthog = usePostHog();
+    const posthogRef = useRef(posthog);
+    posthogRef.current = posthog;
 
     // Keep the box in step when the URL changes (e.g. a search from the header)
     useEffect(() => { setInput(q); }, [q]);
@@ -68,7 +70,7 @@ const SearchAnime = () => {
                 if (!alive) return;
                 const found = (raw.data ?? []).map((item) => item.node);
                 setResults(found);
-                posthog?.capture('anime_searched', { query: q, results_count: found.length });
+                posthogRef.current?.capture('anime_searched', { query: q, results_count: found.length });
             } catch {
                 if (alive) {
                     setResults([]);
@@ -80,7 +82,7 @@ const SearchAnime = () => {
             }
         })();
         return () => { alive = false; };
-    }, [q, posthog]);
+    }, [q]);
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -89,7 +91,7 @@ const SearchAnime = () => {
     };
 
     return (
-        <AppShell>
+        <>
             <PageHeader
                 eyebrow="Search"
                 title={<>Discover <span className="text-gradient">any anime</span></>}
@@ -151,7 +153,7 @@ const SearchAnime = () => {
                     </>
                 )}
             </div>
-        </AppShell>
+        </>
     );
 };
 

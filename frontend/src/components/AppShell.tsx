@@ -1,25 +1,30 @@
-import { useLocation } from 'react-router-dom';
+import { Suspense } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
 import Header from './Header';
 import Footer from './Footer';
 
 /**
- * Frame for every logged-in page: fixed header, the page, footer.
- * Each page fades and slides in when you navigate to it.
+ * Layout route for every logged-in page (see routes.tsx): header, the page,
+ * footer. It stays mounted while you move between pages, so the header never
+ * blinks and only the content area swaps. While a page's code downloads
+ * (pages load lazily) the content area stays empty instead of the whole screen.
  */
-const AppShell = ({ children }: { children: React.ReactNode }) => {
+const AppShell = () => {
     const location = useLocation();
     return (
         <div className="page-bg flex flex-col">
             <Header />
             <motion.main
                 key={location.pathname}
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-                className="flex-1"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
+                className="min-h-screen flex-1"
             >
-                {children}
+                <Suspense fallback={null}>
+                    <Outlet />
+                </Suspense>
             </motion.main>
             <Footer />
         </div>

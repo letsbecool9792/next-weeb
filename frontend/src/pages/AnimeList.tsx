@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { ArrowUp, LayoutGrid, Rows3, RefreshCw, Search, Star, Eye, Clock } from 'lucide-react';
 
-import AppShell from '../components/AppShell';
 import ErrorState from '../components/ErrorState';
 import Poster from '../components/Poster';
 import PageHeader from '../components/ui/PageHeader';
@@ -102,7 +101,7 @@ const AnimeList = () => {
     }, [animeList, tab, filter, sortBy]);
 
     return (
-        <AppShell>
+        <>
             <PageHeader
                 eyebrow="My list"
                 title={<>Your anime <span className="text-gradient">collection</span></>}
@@ -269,7 +268,7 @@ const AnimeList = () => {
                     </motion.button>
                 )}
             </AnimatePresence>
-        </AppShell>
+        </>
     );
 };
 

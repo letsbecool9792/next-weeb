@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Sparkles, TrendingUp, Star, Building2, Gem, MessageCircle, RefreshCw, ListChecks, Heart, Play } from 'lucide-react';
 import { usePostHog } from 'posthog-js/react';
-import AppShell from '../components/AppShell';
 import ChatPanel from '../components/ChatPanel';
 import ErrorState from '../components/ErrorState';
 import HeroBanner from '../components/ui/HeroBanner';
@@ -34,20 +33,29 @@ const Recommendations = () => {
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState('');
     const [regenerating, setRegenerating] = useState(false);
-    const [generation, setGeneration] = useState(0);  // bumping it replays the row animations
+    const [generation, setGeneration] = useState(0);  // bumped only by Regenerate, to replay the animations
     const [chatOpen, setChatOpen] = useState(false);
-    const posthog = usePostHog();
 
-    const loadRecommendations = useCallback(async (regenerate: boolean) => {
+    // Kept in a ref, not a dependency: the PostHog client can change identity
+    // once it finishes loading, which used to re-run the load and animate the
+    // page in a second time.
+    const posthog = usePostHog();
+    const posthogRef = useRef(posthog);
+    posthogRef.current = posthog;
+
+    // isCurrent() is false once the response no longer matters (the page was
+    // left, or React's development mode ran the effect twice on purpose).
+    const loadRecommendations = useCallback(async (regenerate: boolean, isCurrent: () => boolean = () => true) => {
         setLoadError('');
         try {
             const res = await authFetch(`${API_URL}/api/recommendations/${regenerate ? '?regenerate=1' : ''}`);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data: Recommendations = await res.json();
+            if (!isCurrent()) return;
             setRecs(data);
-            setGeneration((g) => g + 1);
+            if (regenerate) setGeneration((g) => g + 1);
 
-            posthog?.capture('recommendations_generated', {
+            posthogRef.current?.capture('recommendations_generated', {
                 top_picks_count: data.top_picks.length,
                 because_you_liked_count: data.because_you_liked.flatMap((b) => b.anime).length,
                 from_genres_count: data.from_genres?.anime.length ?? 0,
@@ -57,15 +65,19 @@ const Recommendations = () => {
                 is_regenerate: regenerate,
             });
         } catch {
-            setLoadError("Couldn't load your recommendations. The server may be waking up; try again in a moment.");
+            if (isCurrent()) setLoadError("Couldn't load your recommendations. The server may be waking up; try again in a moment.");
         } finally {
-            setLoading(false);
-            setRegenerating(false);
+            if (isCurrent()) {
+                setLoading(false);
+                setRegenerating(false);
+            }
         }
-    }, [posthog]);
+    }, []);
 
     useEffect(() => {
-        loadRecommendations(false);
+        let current = true;
+        loadRecommendations(false, () => current);
+        return () => { current = false; };
     }, [loadRecommendations]);
 
     const regenerate = () => {
@@ -79,7 +91,7 @@ const Recommendations = () => {
     const isEmpty = recs && recs.top_picks.length === 0;
 
     return (
-        <AppShell>
+        <>
             {loading ? (
                 <>
                     <HeroSkeleton />
@@ -213,16 +225,15 @@ const Recommendations = () => {
                 whileHover={{ scale: 1.08 }}
                 whileTap={{ scale: 0.92 }}
                 aria-label="Open AI assistant"
-                className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-gradient-to-r from-pink-500 via-fuchsia-500 to-purple-500 px-5 py-4 font-semibold shadow-2xl shadow-pink-500/40 animate-gradient"
+                className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-gradient-to-r from-pink-500 via-fuchsia-500 to-purple-500 px-5 py-4 font-semibold shadow-lg shadow-black/40 transition hover:brightness-110"
                 style={{ backgroundSize: '200% auto' }}
             >
-                <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-pink-500/30" />
                 <MessageCircle className="h-5 w-5" />
                 <span className="hidden sm:inline">Ask the AI</span>
             </motion.button>
 
             <ChatPanel open={chatOpen} onClose={closeChat} />
-        </AppShell>
+        </>
     );
 };
 

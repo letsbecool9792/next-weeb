@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { RefreshCw, TrendingUp, BarChart2, Clock, Film, Star, ArrowRight, Play, Sparkles, ListChecks } from 'lucide-react';
-import AppShell from '../components/AppShell';
 import ErrorState from '../components/ErrorState';
 import HeroBanner from '../components/ui/HeroBanner';
 import Row from '../components/ui/Row';
@@ -75,20 +74,20 @@ const Dashboard = () => {
 
     if (loading) {
         return (
-            <AppShell>
+            <>
                 <HeroSkeleton />
                 <RowSkeleton />
                 <RowSkeleton />
-            </AppShell>
+            </>
         );
     }
 
     if (error) {
         return (
-            <AppShell>
+            <>
                 <div className="pt-24" />
                 <ErrorState message={error} onRetry={loadData} />
-            </AppShell>
+            </>
         );
     }
 
@@ -118,7 +117,7 @@ const Dashboard = () => {
     ];
 
     return (
-        <AppShell>
+        <>
             <HeroBanner
                 image={featured?.image_large ?? featured?.image_url}
                 poster={featured?.image_url ?? null}
@@ -278,7 +277,7 @@ const Dashboard = () => {
                     ))}
                 </div>
             </div>
-        </AppShell>
+        </>
     );
 };
 
