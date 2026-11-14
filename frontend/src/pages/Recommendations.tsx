@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Sparkles, TrendingUp, Star, Building2, Gem, MessageCircle, Send, Loader2, RefreshCw } from 'lucide-react';
+import { Sparkles, TrendingUp, Star, Building2, Gem, MessageCircle, Send, Loader2, RefreshCw, ListChecks, Heart } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { usePostHog } from 'posthog-js/react';
 import Header from '../components/Header';
@@ -10,29 +10,23 @@ import { API_URL } from '../config';
 import { authFetch } from '../utils/fetch';
 import { getAuthHeader } from '../utils/auth';
 
-type Anime = {
+/** One recommended show, as the backend sends it */
+type Pick = {
     id: number;
     title: string;
-    image: string;
-    score: number;
-};
-
-type BecauseYouLiked = {
-    anchor: string;
-    anime: Anime[];
+    image: string | null;
+    score: number | null;  // MAL community score, when known
+    reason: string;        // why this show was picked
 };
 
 type Recommendations = {
-    because_you_liked: BecauseYouLiked[];
-    from_genres: {
-        genre: string;
-        anime: Anime[];
-    };
-    from_studios: {
-        studio: string;
-        anime: Anime[];
-    };
-    hidden_gems: Anime[];
+    top_picks: Pick[];
+    because_you_liked: { anchor: string; anchor_id: number; anime: Pick[] }[];
+    from_genres: { genre: string; anime: Pick[] } | null;
+    from_studios: { studio: string; anime: Pick[] } | null;
+    hidden_gems: Pick[];
+    plan_to_watch: Pick[];
+    taste: { top_genres: string[]; top_studios: string[]; favourites: string[] };
 };
 
 type ChatMessage = {
@@ -40,63 +34,119 @@ type ChatMessage = {
     content: string;
 };
 
-const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
+type UserAnime = { title: string; score: number; status: string };
+
+/** Poster, score badge, title and the reason it was picked */
+const PickCard = ({ pick, accent = 'purple', badge }: { pick: Pick; accent?: 'purple' | 'emerald'; badge?: React.ReactNode }) => (
+    <Link to={`/anime/${pick.id}`} className="group block">
+        <div className={`relative overflow-hidden rounded-lg border-2 transition-all ${
+            accent === 'emerald' ? 'border-emerald-500/30 group-hover:border-emerald-500' : 'border-purple-500/30 group-hover:border-purple-500'
+        }`}>
+            {pick.image ? (
+                <img
+                    src={pick.image}
+                    alt={pick.title}
+                    loading="lazy"
+                    className="w-full h-56 object-cover group-hover:scale-110 transition-transform duration-300"
+                />
+            ) : (
+                // MAL had no picture for this show
+                <div className="w-full h-56 bg-gradient-to-br from-purple-800 to-fuchsia-900 flex items-center justify-center p-3 text-center text-sm text-purple-200">
+                    {pick.title}
+                </div>
+            )}
+            {badge}
+            {pick.score != null && pick.score > 0 && (
+                <div className="absolute top-2 right-2 bg-gradient-to-r from-yellow-400 to-yellow-600 px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                    <Star size={12} />
+                    {pick.score.toFixed(1)}
+                </div>
+            )}
+        </div>
+        <p className="mt-2 text-sm font-medium line-clamp-2 group-hover:text-purple-400 transition-colors">
+            {pick.title}
+        </p>
+        <p className="mt-1 text-xs text-purple-300/80 line-clamp-2">{pick.reason}</p>
+    </Link>
+);
+
+/** A titled card holding a grid of picks. Renders nothing when empty. */
+const Section = ({ icon, title, subtitle, picks, accent, badge }: {
+    icon: React.ReactNode;
+    title: React.ReactNode;
+    subtitle?: string;
+    picks: Pick[];
+    accent?: 'purple' | 'emerald';
+    badge?: React.ReactNode;
+}) => {
+    if (picks.length === 0) return null;
+    return (
+        <div className="card mb-8">
+            <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
+                {icon}
+                {title}
+            </h2>
+            {subtitle && <p className="text-purple-300 mb-4">{subtitle}</p>}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 mt-4">
+                {picks.map((pick) => (
+                    <PickCard key={pick.id} pick={pick} accent={accent} badge={badge} />
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>> }) => {
     const [recommendations, setRecommendations] = useState<Recommendations | null>(null);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState('');
     const [regenerating, setRegenerating] = useState(false);
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
     const [userInput, setUserInput] = useState('');
     const [chatLoading, setChatLoading] = useState(false);
-    const [userAnimeList, setUserAnimeList] = useState<any[]>([]);
+    const [userAnimeList, setUserAnimeList] = useState<UserAnime[]>([]);
     const chatEndRef = useRef<HTMLDivElement>(null);
     const posthog = usePostHog();
 
-    const loadRecommendations = async () => {
-        const res = await authFetch(`${API_URL}/api/recommendations/`);
-        if (res.ok) {
-            const data = await res.json();
+    const loadRecommendations = useCallback(async (regenerate: boolean) => {
+        setLoadError('');
+        try {
+            const res = await authFetch(`${API_URL}/api/recommendations/${regenerate ? '?regenerate=1' : ''}`);
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}`);
+            }
+            const data: Recommendations = await res.json();
             setRecommendations(data);
-            
-            // Track recommendations generated
-            const totalRecs = 
-                (data.because_you_liked?.flatMap((byl: any) => byl.anime).length || 0) +
-                (data.from_genres?.anime?.length || 0) +
-                (data.from_studios?.anime?.length || 0) +
-                (data.hidden_gems?.length || 0);
-            
-            posthog?.capture('recommendations_generated', {
-                count: totalRecs,
-                because_you_liked_count: data.because_you_liked?.flatMap((byl: any) => byl.anime).length || 0,
-                from_genres_count: data.from_genres?.anime?.length || 0,
-                from_studios_count: data.from_studios?.anime?.length || 0,
-                hidden_gems_count: data.hidden_gems?.length || 0,
-                is_regenerate: regenerating,
-            });
-        }
-        setLoading(false);
-        setRegenerating(false);
-    };
 
-    const loadUserAnimeList = async () => {
-        const res = await authFetch(`${API_URL}/api/cached-animelist/`);
-        if (res.ok) {
-            const data = await res.json();
-            console.log('[AI Chat] Fetched anime list:', data.length, 'total anime');
-            // Filter to completed anime with score >= 7 for context
-            const highRated = data.filter((anime: any) => 
-                anime.status === 'completed' && anime.score >= 7
-            );
-            console.log('[AI Chat] High rated anime:', highRated.length, 'anime');
-            setUserAnimeList(highRated);
-        } else {
-            console.error('[AI Chat] Failed to fetch anime list');
+            posthog?.capture('recommendations_generated', {
+                top_picks_count: data.top_picks.length,
+                because_you_liked_count: data.because_you_liked.flatMap((b) => b.anime).length,
+                from_genres_count: data.from_genres?.anime.length ?? 0,
+                from_studios_count: data.from_studios?.anime.length ?? 0,
+                hidden_gems_count: data.hidden_gems.length,
+                plan_to_watch_count: data.plan_to_watch.length,
+                is_regenerate: regenerate,
+            });
+        } catch {
+            setLoadError("Couldn't load your recommendations. The server may be waking up; try again in a moment.");
+        } finally {
+            setLoading(false);
+            setRegenerating(false);
         }
-    };
+    }, [posthog]);
 
     useEffect(() => {
-        loadRecommendations();
-        loadUserAnimeList();
-    }, []);
+        loadRecommendations(false);
+
+        // The chat sends some of the user's favourites along as context
+        (async () => {
+            const res = await authFetch(`${API_URL}/api/cached-animelist/`);
+            if (res.ok) {
+                const data: UserAnime[] = await res.json();
+                setUserAnimeList(data.filter((anime) => anime.status === 'completed' && anime.score >= 7));
+            }
+        })();
+    }, [loadRecommendations]);
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -104,7 +154,7 @@ const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
 
     const handleRegenerate = () => {
         setRegenerating(true);
-        loadRecommendations();
+        loadRecommendations(true);
     };
 
     const handleChatSubmit = async (e: React.FormEvent) => {
@@ -117,21 +167,11 @@ const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
         setChatLoading(true);
 
         try {
-            // Send ACTUAL watched anime as context, not recommendations!
             const context = userAnimeList.slice(0, 10).map(anime => ({
                 title: anime.title,
                 score: anime.score
             }));
-            
-            console.log('[AI Chat] Sending context:', context.length, 'anime');
-            console.log('[AI Chat] Context preview:', context.slice(0, 3));
-
-            // Send current recommendations as suggestions
-            const suggestions = [
-                ...(recommendations?.because_you_liked.flatMap(byl => byl.anime) || []),
-                ...(recommendations?.from_genres.anime || []),
-                ...(recommendations?.hidden_gems || [])
-            ].slice(0, 10).map(a => ({ title: a.title }));
+            const suggestions = (recommendations?.top_picks ?? []).slice(0, 10).map(a => ({ title: a.title }));
 
             const res = await fetch(`${API_URL}/api/ai-chat/`, {
                 method: 'POST',
@@ -149,22 +189,21 @@ const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
             if (res.ok) {
                 const data = await res.json();
                 setChatMessages(prev => [...prev, { role: 'assistant', content: data.message }]);
-                
-                // Track AI chat interaction
+
                 posthog?.capture('ai_chat_message_sent', {
                     message_length: userMessage.length,
                     context_count: context.length,
                 });
             } else {
-                setChatMessages(prev => [...prev, { 
-                    role: 'assistant', 
-                    content: 'Sorry, I had trouble processing that. Please try again!' 
+                setChatMessages(prev => [...prev, {
+                    role: 'assistant',
+                    content: 'Sorry, I had trouble processing that. Please try again!'
                 }]);
             }
-        } catch (error) {
-            setChatMessages(prev => [...prev, { 
-                role: 'assistant', 
-                content: 'Oops! Something went wrong. Please try again.' 
+        } catch {
+            setChatMessages(prev => [...prev, {
+                role: 'assistant',
+                content: 'Oops! Something went wrong. Please try again.'
             }]);
         } finally {
             setChatLoading(false);
@@ -174,10 +213,13 @@ const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
     if (loading) {
         return (
             <div className="bg-gradient-to-b from-gray-900 to-fuchsia-950">
-                <LoadingScreen message="Analyzing your taste..." />
+                <LoadingScreen message="Analyzing your taste..." subMessage="The first visit takes a few seconds" />
             </div>
         );
     }
+
+    const recs = recommendations;
+    const isEmpty = recs && recs.top_picks.length === 0;
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-gray-900 to-fuchsia-950 text-white">
@@ -205,155 +247,98 @@ const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
                     </button>
                 </div>
 
-                {/* Because You Liked Sections */}
-                {recommendations?.because_you_liked.map((section, idx) => (
-                    <div key={idx} className="card mb-8">
-                        <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                            <TrendingUp className="text-pink-400" size={28} />
-                            Because you liked <span className="text-purple-400">{section.anchor}</span>
-                        </h2>
-                        <div className="overflow-x-auto pb-4">
-                            <div className="flex gap-4" style={{ width: 'max-content' }}>
-                                {section.anime.map((anime) => (
-                                    <Link
-                                        key={anime.id}
-                                        to={`/anime/${anime.id}`}
-                                        className="flex-shrink-0 w-44 group"
-                                    >
-                                        <div className="relative overflow-hidden rounded-lg border-2 border-purple-500/30 group-hover:border-purple-500 transition-all">
-                                            <img
-                                                src={anime.image || '/placeholder.png'}
-                                                alt={anime.title}
-                                                className="w-full h-60 object-cover group-hover:scale-110 transition-transform duration-300"
-                                            />
-                                            {anime.score > 0 && (
-                                                <div className="absolute top-2 right-2 bg-gradient-to-r from-yellow-400 to-yellow-600 px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-                                                    <Star size={12} />
-                                                    {anime.score.toFixed(1)}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <p className="mt-2 text-sm font-medium line-clamp-2 group-hover:text-purple-400 transition-colors">
-                                            {anime.title}
-                                        </p>
-                                    </Link>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                ))}
-
-                {/* From Your Favorite Genres */}
-                {recommendations?.from_genres && recommendations.from_genres.anime.length > 0 && (
-                    <div className="card mb-8">
-                        <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                            <Star className="text-purple-400" size={28} />
-                            From Your Favorite Genre: <span className="text-pink-400">{recommendations.from_genres.genre}</span>
-                        </h2>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                            {recommendations.from_genres.anime.map((anime) => (
-                                <Link
-                                    key={anime.id}
-                                    to={`/anime/${anime.id}`}
-                                    className="group"
-                                >
-                                    <div className="relative overflow-hidden rounded-lg border-2 border-purple-500/30 group-hover:border-purple-500 transition-all">
-                                        <img
-                                            src={anime.image || '/placeholder.png'}
-                                            alt={anime.title}
-                                            className="w-full h-56 object-cover group-hover:scale-110 transition-transform duration-300"
-                                        />
-                                        {anime.score > 0 && (
-                                            <div className="absolute top-2 right-2 bg-gradient-to-r from-yellow-400 to-yellow-600 px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-                                                <Star size={12} />
-                                                {anime.score.toFixed(1)}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <p className="mt-2 text-sm font-medium line-clamp-2 group-hover:text-purple-400 transition-colors">
-                                        {anime.title}
-                                    </p>
-                                </Link>
-                            ))}
-                        </div>
+                {loadError && (
+                    <div className="card mb-8 text-center">
+                        <p className="text-red-300 mb-4">{loadError}</p>
+                        <button onClick={() => loadRecommendations(false)} className="btn-primary mx-auto">Try again</button>
                     </div>
                 )}
 
-                {/* From Your Favorite Studios */}
-                {recommendations?.from_studios && recommendations.from_studios.anime.length > 0 && (
-                    <div className="card mb-8">
-                        <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                            <Building2 className="text-blue-400" size={28} />
-                            More from <span className="text-blue-400">{recommendations.from_studios.studio}</span>
-                        </h2>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {recommendations.from_studios.anime.map((anime) => (
-                                <Link
-                                    key={anime.id}
-                                    to={`/anime/${anime.id}`}
-                                    className="group"
-                                >
-                                    <div className="relative overflow-hidden rounded-lg border-2 border-purple-500/30 group-hover:border-purple-500 transition-all">
-                                        <img
-                                            src={anime.image || '/placeholder.png'}
-                                            alt={anime.title}
-                                            className="w-full h-56 object-cover group-hover:scale-110 transition-transform duration-300"
-                                        />
-                                        {anime.score > 0 && (
-                                            <div className="absolute top-2 right-2 bg-gradient-to-r from-yellow-400 to-yellow-600 px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-                                                <Star size={12} />
-                                                {anime.score.toFixed(1)}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <p className="mt-2 text-sm font-medium line-clamp-2 group-hover:text-purple-400 transition-colors">
-                                        {anime.title}
-                                    </p>
-                                </Link>
-                            ))}
-                        </div>
+                {isEmpty && (
+                    <div className="card mb-8 text-center text-purple-200">
+                        Rate or complete a few shows on MyAnimeList, then sync, and recommendations will appear here.
                     </div>
                 )}
 
-                {/* Hidden Gems */}
-                {recommendations?.hidden_gems && recommendations.hidden_gems.length > 0 && (
+                {/* What the recommendations are based on */}
+                {recs && recs.taste.top_genres.length > 0 && (
                     <div className="card mb-8">
-                        <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                            <Gem className="text-emerald-400" size={28} />
-                            Hidden Gems You'll Love
+                        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                            <Heart className="text-pink-400" size={20} />
+                            What we think you like
                         </h2>
-                        <p className="text-purple-300 mb-4">Highly-rated but underrated anime in your favorite genres</p>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {recommendations.hidden_gems.map((anime) => (
-                                <Link
-                                    key={anime.id}
-                                    to={`/anime/${anime.id}`}
-                                    className="group"
-                                >
-                                    <div className="relative overflow-hidden rounded-lg border-2 border-emerald-500/30 group-hover:border-emerald-500 transition-all">
-                                        <img
-                                            src={anime.image || '/placeholder.png'}
-                                            alt={anime.title}
-                                            className="w-full h-56 object-cover group-hover:scale-110 transition-transform duration-300"
-                                        />
-                                        <div className="absolute top-2 left-2 bg-gradient-to-r from-emerald-400 to-emerald-600 px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-                                            <Gem size={12} />
-                                            Hidden
-                                        </div>
-                                        {anime.score > 0 && (
-                                            <div className="absolute top-2 right-2 bg-gradient-to-r from-yellow-400 to-yellow-600 px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-                                                <Star size={12} />
-                                                {anime.score.toFixed(1)}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <p className="mt-2 text-sm font-medium line-clamp-2 group-hover:text-purple-400 transition-colors">
-                                        {anime.title}
-                                    </p>
-                                </Link>
+                        <div className="flex flex-wrap gap-2">
+                            {recs.taste.top_genres.map((g) => (
+                                <span key={g} className="px-3 py-1 rounded-full bg-purple-700/60 text-sm">{g}</span>
+                            ))}
+                            {recs.taste.top_studios.map((s) => (
+                                <span key={s} className="px-3 py-1 rounded-full bg-blue-700/50 text-sm">{s}</span>
                             ))}
                         </div>
+                        {recs.taste.favourites.length > 0 && (
+                            <p className="text-sm text-purple-300 mt-3">
+                                Built mostly from: {recs.taste.favourites.join(', ')}
+                            </p>
+                        )}
                     </div>
+                )}
+
+                {recs && (
+                    <>
+                        <Section
+                            icon={<Sparkles className="text-yellow-400" size={28} />}
+                            title="Top picks for you"
+                            subtitle="The best matches across everything we considered"
+                            picks={recs.top_picks}
+                        />
+
+                        {recs.because_you_liked.map((section) => (
+                            <Section
+                                key={section.anchor_id}
+                                icon={<TrendingUp className="text-pink-400" size={28} />}
+                                title={<>Because you liked <span className="text-purple-400">{section.anchor}</span></>}
+                                subtitle="What MyAnimeList users who loved it recommend"
+                                picks={section.anime}
+                            />
+                        ))}
+
+                        <Section
+                            icon={<ListChecks className="text-green-400" size={28} />}
+                            title="Start next from your Plan to Watch"
+                            subtitle="Your own list, ordered by how well each show fits your taste"
+                            picks={recs.plan_to_watch}
+                        />
+
+                        {recs.from_genres && (
+                            <Section
+                                icon={<Star className="text-purple-400" size={28} />}
+                                title={<>Your kind of <span className="text-pink-400">{recs.from_genres.genre}</span></>}
+                                picks={recs.from_genres.anime}
+                            />
+                        )}
+
+                        {recs.from_studios && (
+                            <Section
+                                icon={<Building2 className="text-blue-400" size={28} />}
+                                title={<>More from <span className="text-blue-400">{recs.from_studios.studio}</span></>}
+                                picks={recs.from_studios.anime}
+                            />
+                        )}
+
+                        <Section
+                            icon={<Gem className="text-emerald-400" size={28} />}
+                            title="Hidden gems you'll love"
+                            subtitle="Highly rated, but outside the 1,500 most popular shows"
+                            picks={recs.hidden_gems}
+                            accent="emerald"
+                            badge={
+                                <div className="absolute top-2 left-2 bg-gradient-to-r from-emerald-400 to-emerald-600 px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                                    <Gem size={12} />
+                                    Hidden
+                                </div>
+                            }
+                        />
+                    </>
                 )}
 
                 {/* AI Chat Assistant */}
@@ -382,8 +367,8 @@ const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
                                 {chatMessages.map((msg, idx) => (
                                     <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                         <div className={`max-w-[80%] rounded-lg p-3 ${
-                                            msg.role === 'user' 
-                                                ? 'bg-gradient-to-r from-pink-500 to-purple-500' 
+                                            msg.role === 'user'
+                                                ? 'bg-gradient-to-r from-pink-500 to-purple-500'
                                                 : 'bg-purple-800/50'
                                         }`}>
                                             {msg.role === 'user' ? (
