@@ -16,7 +16,7 @@ from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.settings import api_settings
 from rest_framework_simplejwt.views import TokenBlacklistView, TokenRefreshView
 
-from .throttles import TokenRefreshThrottle
+from ..throttles import TokenRefreshThrottle
 
 
 class CheckedTokenRefreshSerializer(TokenRefreshSerializer):
