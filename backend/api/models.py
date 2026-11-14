@@ -6,7 +6,8 @@ from django.contrib.auth.models import User
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE) 
-    mal_access_token = models.CharField(max_length=255, blank = True, null = True) 
+    # MAL access tokens are ~780 characters, so this cannot be a short CharField.
+    mal_access_token = models.TextField(blank=True, null=True)
 
     name = models.CharField(max_length=100, blank=True, null=True)
     birthday = models.DateField(blank=True, null=True)
