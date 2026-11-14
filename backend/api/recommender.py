@@ -2,7 +2,11 @@
 Recommendation logic: how candidates are found and scored.
 Kept apart from the views so the scoring can be read on its own.
 """
+import logging
+
 from .mal import MalNotFound, MalUnavailable, mal_get
+
+logger = logging.getLogger(__name__)
 
 
 # MAL Genre ID mapping (fetched from MAL API)
@@ -217,9 +221,6 @@ def calculate_similarity_score(anchor_anime, candidate_anime):
 
 def find_similar_anime(user, anchor_anime, watched_ids):
     """Find anime similar to the anchor by fetching popular anime and filtering by genre"""
-    import json
-    from pathlib import Path
-    
     # Search using anchor's main genre
     if not anchor_anime.get("genres"):
         return []
@@ -229,21 +230,7 @@ def find_similar_anime(user, anchor_anime, watched_ids):
     secondary_genre = anchor_genres[1]["name"] if len(anchor_genres) > 1 else None
     anchor_score = anchor_anime.get("mean", 0)
     anchor_popularity = anchor_anime.get("popularity", 99999)
-    
-    # Initialize debug log
-    debug_log = {
-        "anchor_anime": {
-            "title": anchor_anime.get("title"),
-            "score": anchor_score,
-            "popularity": anchor_popularity,
-            "genres": [g["name"] for g in anchor_genres],
-            "themes": [t["name"] for t in anchor_anime.get("themes", [])]
-        },
-        "search_strategy": {},
-        "filters": {},
-        "final_results": []
-    }
-    
+
     # Get genre IDs for filtering
     main_genre_id = GENRE_IDS.get(main_genre)
     secondary_genre_id = GENRE_IDS.get(secondary_genre) if secondary_genre else None
@@ -276,21 +263,6 @@ def find_similar_anime(user, anchor_anime, watched_ids):
                     "popularity": anime.get("popularity", 99999),
                     "genres": [g["name"] for g in anime.get("genres", [])]
                 })
-    
-    debug_log["search_strategy"] = {
-        "method": "Popular anime ranking filtered by genre",
-        "ranking_type": "bypopularity",
-        "limit": 500,
-        "main_genre": main_genre,
-        "main_genre_id": main_genre_id,
-        "secondary_genre": secondary_genre,
-        "secondary_genre_id": secondary_genre_id,
-        "filter": f"Has {main_genre} (ID:{main_genre_id})" + (f" or {secondary_genre} (ID:{secondary_genre_id})" if secondary_genre_id else ""),
-        "total_found": len(search_results),
-        "results": search_results
-    }
-    
-    debug_log["total_unique_candidates"] = len(all_candidates)
     
     results = list(all_candidates.values())
     similar = []
@@ -381,56 +353,15 @@ def find_similar_anime(user, anchor_anime, watched_ids):
                 "similarity": similarity_score
             })
     
-    debug_log["filters"] = {
-        "filter_1_already_watched": {
-            "count": len(filtered_already_watched),
-            "anime": filtered_already_watched
-        },
-        "filter_2_low_score": {
-            "count": len(filtered_low_score),
-            "min_required": max(7.0, anchor_score - 1.5),
-            "note": "Relaxed from 7.5 to 7.0 minimum, anchor -1.5 instead of -1.0",
-            "anime": filtered_low_score
-        },
-        "filter_3_popularity_users": {
-            "count": len(filtered_low_popularity),
-            "anime": filtered_low_popularity
-        },
-        "filter_4_sequels": {
-            "count": len(filtered_sequels),
-            "anime": filtered_sequels
-        },
-        "passed_all_filters": {
-            "count": len(passed_filters),
-            "anime": sorted(passed_filters, key=lambda x: x["similarity_score"], reverse=True)
-        }
-    }
-    
+    logger.debug(
+        f"[recommender] anchor={anchor_anime.get('title')!r} candidates={len(all_candidates)} "
+        f"watched={len(filtered_already_watched)} low_score={len(filtered_low_score)} "
+        f"low_popularity={len(filtered_low_popularity)} sequels={len(filtered_sequels)} "
+        f"passed={len(passed_filters)}"
+    )
+
     # Sort by COMBINED similarity and score (not just similarity alone)
-    final_sorted = sorted(similar, key=lambda x: (x["similarity"], x["score"]), reverse=True)
-    
-    debug_log["final_results"] = [{
-        "rank": i+1,
-        "title": a["title"],
-        "score": a["score"],
-        "popularity": a["popularity"],
-        "similarity_score": a["similarity"]
-    } for i, a in enumerate(final_sorted)]
-    
-    # Save debug log to file
-    anchor_title_clean = "".join(c for c in anchor_anime.get("title", "unknown") if c.isalnum() or c in (' ', '-', '_')).strip()
-    anchor_title_clean = anchor_title_clean.replace(" ", "-")[:50]  # Limit filename length
-    
-    debug_dir = Path(__file__).parent.parent / "debug_recommendations"
-    debug_dir.mkdir(exist_ok=True)
-    
-    debug_file = debug_dir / f"{anchor_title_clean}-recs.json"
-    with open(debug_file, 'w', encoding='utf-8') as f:
-        json.dump(debug_log, f, indent=2, ensure_ascii=False)
-    
-    print(f"DEBUG: Saved recommendation analysis to {debug_file}")
-    
-    return final_sorted
+    return sorted(similar, key=lambda x: (x["similarity"], x["score"]), reverse=True)
 
 
 def extract_base_title(title):

@@ -20,7 +20,9 @@ def get_recommendations(request):
 
     # Get user's completed/high-rated anime
     user_anime = mal_get(user, "/users/@me/animelist", {
-        "fields": "list_status,genres,studios,themes,media_type",
+        # mean and popularity were never requested before, so every anchor looked like
+        # an unrated, unknown show (0 and 99999). MAL's API has no "themes" field.
+        "fields": "list_status,genres,studios,media_type,mean,popularity",
         "limit": 1000,
         "status": "completed",
     }).get("data", [])
