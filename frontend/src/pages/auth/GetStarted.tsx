@@ -1,9 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Shield, Zap, BarChart2, List } from 'lucide-react';
+import { motion } from 'motion/react';
+import { ArrowRight, Shield, Zap, BarChart2, List, Sparkles, AlertTriangle } from 'lucide-react';
 import { usePostHog } from 'posthog-js/react';
 import { useAuth } from '../../auth/useAuth';
 import { fetchOAuthConfig, startMalLogin, type OAuthConfig } from '../../utils/oauth';
+import PosterWall from '../../components/ui/PosterWall';
+
+const FEATURES = [
+    { icon: Zap, title: 'Personalized picks', description: 'Recommendations that say why they were chosen' },
+    { icon: BarChart2, title: 'Taste analyzer', description: 'The genres and studios you gravitate towards' },
+    { icon: List, title: 'Plan to Watch, ranked', description: 'Know which show to start next' },
+];
 
 const GetStarted = () => {
     const { isLoggedIn } = useAuth();
@@ -45,105 +53,89 @@ const GetStarted = () => {
         }
     };
 
-    const features = [
-    {
-        icon: <Zap className="text-white" />,
-        title: "Personalized Recommendations",
-        description: "Get anime suggestions that actually match your taste"
-    },
-    {
-        icon: <BarChart2 className="text-white" />,
-        title: "Taste Analyzer",
-        description: "See what genres and studios you gravitate towards"
-    },
-    {
-        icon: <List className="text-white" />,
-        title: "Plan to Watch, Ranked",
-        description: "Know which show on your Plan to Watch to start next"
-    }
-    ];
-
-    if (isLoggedIn) {
-        return (
-            <div className="min-h-screen bg-gradient-to-b from-purple-900 to-indigo-900 flex items-center justify-center text-white">
-            <div className="bg-purple-800 bg-opacity-30 backdrop-blur-sm border border-purple-500 border-opacity-30 rounded-xl p-8 max-w-md w-full shadow-lg">
-                <div className="text-center">
-                <h1 className="text-2xl font-bold">You're already logged in!</h1>
-                <p className="mt-2 text-purple-200">Your anime journey awaits.</p>
-                <Link
-                    to="/dashboard"
-                    className="mt-6 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 px-6 py-3 rounded-full font-medium inline-flex items-center justify-center"
-                >
-                    Go to Dashboard
-                    <ArrowRight className="ml-2 w-5 h-5" />
-                </Link>
-                </div>
-            </div>
-            </div>
-        );
-    }
-
     return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-900 to-indigo-900 text-white p-4">
-        <div className="max-w-4xl mx-auto pt-16 pb-20">
-        <div className="text-center mb-12">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">Connect Your MAL Account</h1>
-            <p className="text-xl text-purple-200 max-w-2xl mx-auto">
-            We use your MAL history to give you smarter recommendations, breakdowns, and insights. 
-            NextWeeb only reads your list. It never changes anything on MyAnimeList.
-            </p>
-        </div>
-        
-        {malExpired && (
-            <div className="bg-yellow-500/10 border border-yellow-400/40 text-yellow-100 rounded-xl p-4 mb-6 text-center">
-                Your MyAnimeList connection expired. Log in again to reconnect it.
-            </div>
-        )}
+        <div className="page-bg relative flex items-center justify-center overflow-hidden px-4 py-16">
+            <PosterWall className="opacity-30" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgb(11_6_20/0.75)_0%,rgb(11_6_20/0.95)_65%)]" />
 
-        <div className="bg-purple-800 bg-opacity-20 backdrop-blur-sm border border-purple-500 border-opacity-30 rounded-xl p-8 mb-12">
-            <div className="flex flex-col items-center">
-            <div className="mb-6">
-                <Shield className="h-12 w-12 text-purple-300" />
-            </div>
-            <p className="text-center mb-8 text-purple-200">
-                You log in on MyAnimeList's own page, so your password never reaches us.
-                NextWeeb only reads your list and profile; it never edits them.
-            </p>
-            <button
-                onClick={handleMALLogin}
-                disabled={isStartingLogin}
-                className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 px-8 py-4 rounded-full font-medium text-lg flex items-center disabled:opacity-60"
+            <Link to="/" className="absolute left-4 top-5 z-10 flex items-center gap-2 sm:left-8">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-pink-500 to-purple-600">
+                    <Sparkles className="h-4 w-4" />
+                </span>
+                <span className="text-lg font-bold text-gradient">NextWeeb</span>
+            </Link>
+
+            <motion.div
+                initial={{ opacity: 0, y: 30, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                className="relative z-10 w-full max-w-lg"
             >
-                {isStartingLogin ? 'Connecting...' : 'Login with MyAnimeList'}
-                <ArrowRight className="ml-2 w-5 h-5" />
-            </button>
-            {loginError && (
-                <p className="mt-4 text-red-300">{loginError}</p>
-            )}
-            </div>
+                {isLoggedIn ? (
+                    <div className="card p-10 text-center">
+                        <h1 className="text-3xl font-bold">You're already logged in!</h1>
+                        <p className="mt-2 text-purple-200/80">Your anime journey awaits.</p>
+                        <Link to="/dashboard" className="btn-primary mt-8 px-8 py-3">
+                            Go to Home <ArrowRight className="h-5 w-5" />
+                        </Link>
+                    </div>
+                ) : (
+                    <div className="card p-8 sm:p-10">
+                        <div className="text-center">
+                            <motion.div
+                                animate={{ rotate: [0, -6, 6, 0] }}
+                                transition={{ repeat: Infinity, duration: 5, ease: 'easeInOut' }}
+                                className="icon mx-auto mb-6 h-16 w-16 rounded-2xl"
+                            >
+                                <Shield className="h-8 w-8" />
+                            </motion.div>
+                            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Connect your MAL account</h1>
+                            <p className="mt-3 text-purple-200/80">
+                                We use your MyAnimeList history for smarter recommendations, breakdowns and insights.
+                            </p>
+                        </div>
+
+                        {malExpired && (
+                            <div className="mt-6 flex items-start gap-3 rounded-xl border border-amber-400/40 bg-amber-500/10 p-4 text-sm text-amber-100">
+                                <AlertTriangle className="h-5 w-5 shrink-0" />
+                                Your MyAnimeList connection expired. Log in again to reconnect it.
+                            </div>
+                        )}
+
+                        <button onClick={handleMALLogin} disabled={isStartingLogin} className="btn-primary mt-8 w-full py-4 text-lg">
+                            {isStartingLogin ? 'Connecting...' : 'Log in with MyAnimeList'}
+                            <ArrowRight className="h-5 w-5" />
+                        </button>
+                        {loginError && <p className="mt-4 text-center text-sm text-rose-300">{loginError}</p>}
+
+                        <p className="mt-5 text-center text-xs text-purple-300/70">
+                            You log in on MyAnimeList's own page, so your password never reaches us.
+                            NextWeeb only reads your list and profile; it never edits them.
+                        </p>
+
+                        <div className="mt-8 grid gap-3 border-t border-white/10 pt-6">
+                            {FEATURES.map((f, i) => (
+                                <motion.div
+                                    key={f.title}
+                                    initial={{ opacity: 0, x: -16 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: 0.4 + i * 0.1 }}
+                                    className="flex items-center gap-3"
+                                >
+                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/5 text-pink-300">
+                                        <f.icon className="h-4 w-4" />
+                                    </span>
+                                    <div>
+                                        <p className="text-sm font-semibold">{f.title}</p>
+                                        <p className="text-xs text-purple-300/70">{f.description}</p>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </motion.div>
         </div>
-        
-        <div className="mb-12">
-            <h2 className="text-2xl font-bold mb-6 text-center">Unlock These Features</h2>
-            <div className="grid md:grid-cols-3 gap-6">
-            {features.map((feature, index) => (
-                <div key={index} className="bg-purple-800 bg-opacity-20 backdrop-blur-sm border border-purple-500 border-opacity-30 rounded-xl p-6">
-                <div className="bg-gradient-to-r from-pink-500 to-purple-500 w-12 h-12 rounded-full flex items-center justify-center mb-4">
-                    {feature.icon}
-                </div>
-                <h3 className="text-xl font-bold mb-2">{feature.title}</h3>
-                <p className="text-purple-200">{feature.description}</p>
-                </div>
-            ))}
-            </div>
-        </div>
-        
-        <div className="text-center text-purple-300">
-            <p className="font-medium">Built by a weeb, for weebs</p>
-            <p className="mt-1 text-sm">No ads, no data selling, just better anime recommendations</p>
-        </div>
-        </div>
-    </div>
     );
 };
 

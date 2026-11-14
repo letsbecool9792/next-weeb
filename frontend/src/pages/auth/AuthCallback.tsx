@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { API_URL } from '../../config';
 import { useAuth } from '../../auth/useAuth';
 import { takePendingLogin } from '../../utils/oauth';
+import { motion } from 'motion/react';
+import PosterWall from '../../components/ui/PosterWall';
+import LoadingScreen from '../../components/LoadingScreen';
 
 const AuthCallback = () => {
     const { signIn } = useAuth();
@@ -81,24 +84,26 @@ const AuthCallback = () => {
         finishLogin();
     }, [navigate, signIn]);
 
-    if (error) {
-        return (
-            <div className="min-h-screen bg-gradient-to-b from-purple-900 to-indigo-900 flex items-center justify-center text-white">
-                <div className="bg-red-800 bg-opacity-30 backdrop-blur-sm border border-red-500 border-opacity-30 rounded-xl p-8 max-w-md w-full">
-                    <h1 className="text-2xl font-bold text-red-300 mb-4">Authentication Error</h1>
-                    <p className="text-red-200">{error}</p>
-                    <p className="text-purple-200 mt-4">Redirecting to login page...</p>
-                </div>
-            </div>
-        );
-    }
-
     return (
-        <div className="min-h-screen bg-gradient-to-b from-purple-900 to-indigo-900 flex items-center justify-center text-white">
-            <div className="text-center">
-                <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-purple-300 mx-auto"></div>
-                <p className="mt-4 text-xl font-medium text-purple-300">Completing authentication...</p>
-                <p className="mt-2 text-sm text-purple-400">Please wait while we log you in</p>
+        <div className="page-bg relative overflow-hidden">
+            <PosterWall className="opacity-20" />
+            <div className="absolute inset-0 bg-ink/80" />
+            <div className="relative">
+                {error ? (
+                    <div className="overlay-center">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="card max-w-md border-rose-400/30 text-center"
+                        >
+                            <h1 className="mb-3 text-2xl font-bold text-rose-300">Login didn't work</h1>
+                            <p className="text-purple-100/90">{error}</p>
+                            <p className="mt-4 text-sm text-purple-300/70">Taking you back to the login page...</p>
+                        </motion.div>
+                    </div>
+                ) : (
+                    <LoadingScreen message="Logging you in..." subMessage="Fetching your MyAnimeList profile" />
+                )}
             </div>
         </div>
     );

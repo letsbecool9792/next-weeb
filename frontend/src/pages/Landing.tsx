@@ -1,302 +1,257 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ChevronRight, BarChart2, Filter, List, Zap, MessageCircle, CircleCheck, Menu, X } from 'lucide-react';
+import { motion, useScroll, useTransform } from 'motion/react';
+import { ArrowRight, BarChart2, ChevronDown, CircleCheck, Filter, List, MessageCircle, Sparkles, X, Check, Zap } from 'lucide-react';
 
-import Card from '../components/Card';
 import Footer from '../components/Footer';
-import HowItWorksCard from '../components/HowItWorksCard';
+import PosterWall from '../components/ui/PosterWall';
+import Reveal from '../components/ui/Reveal';
 import { useAuth } from '../auth/useAuth';
+
+// Only features that exist.
+const FEATURES = [
+    {
+        icon: Zap,
+        title: 'Recommendations That Explain Themselves',
+        description: 'Picks built from your ratings and from what fans of your favourite shows recommend. Every pick says why it was chosen.',
+    },
+    {
+        icon: MessageCircle,
+        title: 'An AI That Knows Your List',
+        description: 'Ask for "something short and wholesome". It only suggests shows you haven\'t seen, as cards you can click.',
+    },
+    {
+        icon: BarChart2,
+        title: 'Taste Analyzer',
+        description: "Your top genres and studios, rating spread, media types and total watch time across everything you've finished.",
+    },
+    {
+        icon: List,
+        title: 'Your Whole List, Fast',
+        description: 'Your full MAL list synced and cached. Filter by status and sort by score, episodes or last update.',
+    },
+    {
+        icon: Filter,
+        title: 'Plan to Watch, Ranked',
+        description: 'Find out which show already on your Plan to Watch fits your taste best, so you know what to start next.',
+    },
+    {
+        icon: CircleCheck,
+        title: 'Clean UI, No Ads',
+        description: 'No bullshit. Just you, your weeb data, and the shows you love.',
+    },
+];
+
+const STEPS = [
+    { title: 'Sign in', description: 'Log in with your MyAnimeList account. We copy your list.' },
+    { title: 'Analyze', description: 'We work out your taste from your scores, genres and studios.' },
+    { title: 'Recommend', description: 'Boom. You get bangers tailored to your style, each with a reason.' },
+    { title: 'Discover more', description: 'No data selling. No spam. Just better anime suggestions.' },
+];
+
+const PROBLEMS = [
+    <>Tired of cookie-cutter recs that act like everyone's got <b className="text-pink-300">the same taste</b>?</>,
+    <>Sick of scrolling through <b className="text-pink-300">anime hell</b> just to find one show that doesn't suck?</>,
+    <>Wasting hours watching <b className="text-pink-300">mid</b>? Nah, that ain't it.</>,
+];
+const SOLUTIONS = [
+    <>NextWeeb uses your MAL history to recommend shows you'll <b className="text-pink-300">actually</b> want to watch.</>,
+    <>See the genres and studios that define your taste, tailored to <b className="text-pink-300">you</b>.</>,
+    <>Be an <b className="text-pink-300">anime stat god</b>. Sort, filter, dominate.</>,
+];
 
 const Landing = () => {
     // Logged-in visitors skip the login page
     const { isLoggedIn } = useAuth();
     const startPath = isLoggedIn ? '/dashboard' : '/get-started';
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-    // Only features that exist. The old list promised custom lists, theme and
-    // mood analysis, and adding shows to your Plan to Watch.
-    const features = [
-        {
-            icon: <Zap className="text-white" />,
-            title: "Recommendations That Explain Themselves",
-            description:
-            "Picks built from your ratings and from what fans of your favourite shows recommend. Every pick says why it was chosen.",
-        },
-        {
-            icon: <MessageCircle className="text-white" />,
-            title: "An AI That Knows Your List",
-            description: "Ask for \"something short and wholesome\". It only suggests shows you haven't seen, as cards you can click.",
-        },
-        {
-            icon: <BarChart2 className="text-white" />,
-            title: "Taste Analyzer",
-            description: "Your top genres and studios, rating spread, media types and total watch time across everything you've finished."
-        },
-        {
-            icon: <List className="text-white" />,
-            title: "Your Whole List, Fast",
-            description: "Your full MAL list synced and cached. Filter by status and sort by score, episodes or last update."
-        },
-        {
-            icon: <Filter className="text-white" />,
-            title: "Plan to Watch, Ranked",
-            description: "Find out which show already on your Plan to Watch fits your taste best, so you know what to start next."
-        },
-        {
-            icon: <CircleCheck className="text-white" />,
-            title: "Clean UI, No Ads",
-            description: "No bullshit. Just you, your weeb data, and the shows you love. A clean interface focused on anime."
-        }
-    ];
-
-    const steps = [
-        {
-          number: 1,
-          title: "Sign In",
-          description: "Log in with your MyAnimeList account to sync your anime list.",
-        },
-        {
-          number: 2,
-          title: "Analyze",
-          description: "We scan your list, genres, and studios to understand your taste.",
-        },
-        {
-          number: 3,
-          title: "Recommend",
-          description: "Boom. You get bangers tailored just for your style.",
-        },
-        {
-          number: 4,
-          title: "Discover More",
-          description: "No data selling. No spam. Just better anime suggestions.",
-        },
-    ];
+    // The hero text drifts up and fades as you scroll past it
+    const { scrollY } = useScroll();
+    const heroY = useTransform(scrollY, [0, 500], [0, -120]);
+    const heroOpacity = useTransform(scrollY, [0, 400], [1, 0]);
 
     return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-900 to-indigo-900 text-white">
-        {/* Navigation */}
-        <nav className="px-4 sm:px-6 lg:px-8 py-4">
-        <div className="flex justify-between items-center">
-            <div className="flex items-center">
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-purple-400">
-                NextWeeb
-            </span>
-            </div>
-            <div className="hidden md:flex space-x-8">
-            <a href="#features" className="hover:text-purple-300 transition-colors">Features</a>
-            <a href="#how-it-works" className="hover:text-purple-300 transition-colors">How It Works</a>
-            <a href="#about" className="hover:text-purple-300 transition-colors">About</a>
-            </div>
-            <div className="hidden md:block">
-            <Link to={startPath} className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 px-5 py-2 rounded-full font-medium flex items-center">
-                Get Started
-                <ArrowRight className="ml-2 w-4 h-4" />
-            </Link>
-            </div>
-            <div className="md:hidden">
-            <button 
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="text-white focus:outline-none"
-            >
-                {isMenuOpen ? (
-                <X className="w-6 h-6" />
-                ) : (
-                <Menu className="w-6 h-6" />
-                )}
-            </button>
-            </div>
-        </div>
-        {/* Mobile menu */}
-        {isMenuOpen && (
-            <div className="md:hidden mt-4 bg-purple-800 rounded-lg p-4">
-            <div className="flex flex-col space-y-4">
-                <a href="#features" className="hover:text-purple-300 transition-colors">Features</a>
-                <a href="#how-it-works" className="hover:text-purple-300 transition-colors">How It Works</a>
-                <a href="#about" className="hover:text-purple-300 transition-colors">About</a>
-                <Link to={startPath} className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 px-5 py-2 rounded-full font-medium flex items-center justify-center">
-                Get Started
-                <ArrowRight className="ml-2 w-4 h-4" />
+        <div className="page-bg overflow-x-hidden">
+            {/* Navigation */}
+            <nav className="fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between px-4 backdrop-blur-md sm:px-8">
+                <Link to="/" className="flex items-center gap-2">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-pink-500 to-purple-600 shadow-lg shadow-pink-500/30">
+                        <Sparkles className="h-4 w-4" />
+                    </span>
+                    <span className="text-lg font-bold text-gradient">NextWeeb</span>
                 </Link>
-            </div>
-            </div>
-        )}
-        </nav>
-
-        {/* Hero Section */}
-        <section className="px-4 sm:px-6 lg:px-8 py-20 md:py-32 max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row items-center">
-            <div className="md:w-1/2 mb-10 md:mb-0">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight">
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-pink-400 to-purple-300">
-                NextWeeb
-                </span>
-            </h1>
-            <p className="text-xl md:text-2xl mt-2 text-purple-200 font-medium">
-                Your Anime Journey, Supercharged.
-            </p>
-            <p className="mt-6 text-lg text-purple-100 max-w-lg">
-                Discover anime that actually fits your taste. Powered by MyAnimeList + smart-ass AI.
-            </p>
-            <div className="mt-8 flex flex-col sm:flex-row gap-4">
-                <Link to={startPath} className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 px-6 py-3 rounded-full font-medium flex items-center justify-center">
-                Get Started
-                <ArrowRight className="ml-2 w-5 h-5" />
+                <div className="hidden items-center gap-8 text-sm text-purple-200/80 md:flex">
+                    <a href="#features" className="transition hover:text-white">Features</a>
+                    <a href="#how-it-works" className="transition hover:text-white">How it works</a>
+                </div>
+                <Link to={startPath} className="btn-secondary px-5 py-2 text-sm">
+                    {isLoggedIn ? 'Open app' : 'Log in'}
                 </Link>
-            </div>
-            </div>
-            <div className="md:w-1/2 relative">
-            <div className="relative h-80 flex items-center justify-center">
-                {/* Background gradient orbs */}
-                <div className="absolute w-48 h-48 bg-gradient-to-br from-pink-400 to-purple-600 rounded-full blur-3xl opacity-60 animate-pulse"></div>
-                <div className="absolute top-10 right-10 w-32 h-32 bg-gradient-to-br from-purple-400 to-indigo-600 rounded-full blur-2xl opacity-50 animate-pulse" style={{ animationDelay: '1s', animationDuration: '3s' }}></div>
-                <div className="absolute bottom-10 left-10 w-40 h-40 bg-gradient-to-br from-pink-500 to-purple-500 rounded-full blur-2xl opacity-50 animate-pulse" style={{ animationDelay: '2s', animationDuration: '4s' }}></div>
-                
-                {/* SVG Mockup */}
-                <div className="relative rounded-lg shadow-2xl">
-                <svg viewBox="0 0 400 300" className="w-full h-auto">
-                    {/* Dashboard header mockup */}
-                    <rect x="10" y="10" width="380" height="80" rx="10" className="fill-purple-500/20 stroke-purple-400/40" strokeWidth="1" />
-                    
-                    {/* Recommendations section */}
-                    <rect x="10" y="110" width="250" height="60" rx="10" className="fill-pink-500/20 stroke-pink-400/40" strokeWidth="1" />
-                    
-                    {/* Stats bar */}
-                    <rect x="10" y="190" width="320" height="40" rx="10" className="fill-indigo-500/20 stroke-indigo-400/40" strokeWidth="1" />
-                    
-                    {/* Accent circles */}
-                    <circle cx="30" cy="50" r="8" className="fill-pink-400/60" />
-                    <circle cx="30" cy="140" r="8" className="fill-purple-400/60" />
-                    <circle cx="30" cy="210" r="8" className="fill-indigo-400/60" />
-                </svg>
-                </div>
-                
-                <div className="absolute -bottom-4 -right-4 bg-gradient-to-r from-pink-500 to-purple-600 px-6 py-3 rounded-lg shadow-lg z-10">
-                <span className="font-medium">Your next favorite anime awaits</span>
-                </div>
-            </div>
-            </div>
-        </div>
-        </section>
+            </nav>
 
-        {/* Problem & Solution */}
-        <section className="px-4 sm:px-6 lg:px-8 py-20 bg-purple-900 bg-opacity-50">
-        <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold">The Problem with Anime Recommendations</h2>
-            <div className="mt-4 max-w-3xl mx-auto">
-                <p className="text-lg text-purple-200">
-                    Tired of basic anime recs that don't get your vibe? Want to explore your anime taste more deeply?
-                </p>
-            </div>
-            </div>
+            {/* Hero: poster wall behind a big headline */}
+            <section className="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
+                <PosterWall className="opacity-40" />
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgb(11_6_20/0.55)_0%,rgb(11_6_20/0.92)_60%,rgb(11_6_20)_100%)]" />
+                <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-ink to-transparent" />
 
-            <div className="grid md:grid-cols-2 gap-12">
-            <div className="bg-purple-800 bg-opacity-30 backdrop-blur-sm border border-purple-500 border-opacity-30 p-8 rounded-xl">
-                <h3 className="text-2xl font-bold mb-4">The Problem</h3>
-                <ul className="space-y-4">
-                <li className="flex items-start">
-                    <ChevronRight className="text-pink-400 mr-2 flex-shrink-0" />
-                    <p>Tired of cookie-cutter recs that act like everyone’s got <span className="font-bold text-pink-300">the same taste</span>?</p>
-                </li>
-                <li className="flex items-start">
-                    <ChevronRight className="text-pink-400 mr-2 flex-shrink-0" />
-                    <p>Sick of scrolling through <span className="font-bold text-pink-300">anime hell</span> just to find one show that doesn’t suck?</p>
-                </li>
-                <li className="flex items-start">
-                    <ChevronRight className="text-pink-400 mr-2 flex-shrink-0" />
-                    <p>Wasting hours watching <span className="font-bold text-pink-300">mid</span>? Nah, that ain’t it.</p>
-                </li>
-                </ul>
-            </div>
-            
-            <div className="bg-purple-800 bg-opacity-30 backdrop-blur-sm border border-purple-500 border-opacity-30 p-8 rounded-xl">
-                <h3 className="text-2xl font-bold mb-4">Our Solution</h3>
-                <ul className="space-y-4">
-                <li className="flex items-start">
-                    <ChevronRight className="text-pink-400 mr-2 flex-shrink-0" />
-                    <p>NextWeeb uses your MAL history to recommend shows you'll <span className="font-bold text-pink-300">actually</span> want to watch.</p>
-                </li>
-                <li className="flex items-start">
-                    <ChevronRight className="text-pink-400 mr-2 flex-shrink-0" />
-                    <p>See the genres and studios that define your taste, tailored to <span className="font-bold text-pink-300">you</span>.</p>
-                </li>
-                <li className="flex items-start">
-                    <ChevronRight className="text-pink-400 mr-2 flex-shrink-0" />
-                    <p>Be an <span className="font-bold text-pink-300">anime stat god</span> — sort, filter, dominate.</p>
-                </li>
-                </ul>
-            </div>
-            </div>
-        </div>
-        </section>
+                <motion.div style={{ y: heroY, opacity: heroOpacity }} className="relative z-10 max-w-4xl text-center">
+                    <motion.p
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6 }}
+                        className="chip mx-auto mb-6 px-4 py-1.5 text-sm"
+                    >
+                        <Sparkles className="h-3.5 w-3.5 text-pink-300" /> Built on your MyAnimeList
+                    </motion.p>
+                    <motion.h1
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+                        className="text-5xl font-bold leading-[0.95] tracking-tight sm:text-7xl lg:text-8xl"
+                    >
+                        Find your next
+                        <br />
+                        <span className="text-gradient-animated">favourite anime.</span>
+                    </motion.h1>
+                    <motion.p
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                        className="mx-auto mt-6 max-w-xl text-lg text-purple-100/80 sm:text-xl"
+                    >
+                        NextWeeb reads your MyAnimeList history and tells you what to watch next, and why.
+                    </motion.p>
+                    <motion.div
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                        className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row"
+                    >
+                        <Link to={startPath} className="btn-primary px-8 py-4 text-lg">
+                            {isLoggedIn ? 'Open NextWeeb' : 'Log in with MyAnimeList'}
+                            <ArrowRight className="h-5 w-5" />
+                        </Link>
+                        <a href="#how-it-works" className="btn-secondary px-8 py-4 text-lg">See how it works</a>
+                    </motion.div>
+                </motion.div>
 
-        {/* Features Section */}
-        <section id="features" className="px-4 sm:px-6 lg:px-8 py-20">
-            <div className="max-w-7xl mx-auto">
-                <div className="text-center mb-16">
-                    <h2 className="text-3xl md:text-4xl font-bold">Core Features</h2>
-                    <p className="mt-4 text-lg text-purple-200 max-w-3xl mx-auto">
-                        Everything you need to supercharge your anime discovery experience.
+                <motion.a
+                    href="#problem"
+                    aria-label="Scroll down"
+                    animate={{ y: [0, 10, 0] }}
+                    transition={{ repeat: Infinity, duration: 2 }}
+                    className="absolute bottom-8 left-1/2 z-10 -translate-x-1/2 text-purple-300/70"
+                >
+                    <ChevronDown className="h-8 w-8" />
+                </motion.a>
+            </section>
+
+            {/* Problem and solution */}
+            <section id="problem" className="mx-auto max-w-6xl px-4 py-24 sm:px-8">
+                <Reveal className="mb-14 text-center">
+                    <h2 className="text-3xl font-bold tracking-tight sm:text-5xl">
+                        Anime recs are <span className="text-gradient">broken</span>.
+                    </h2>
+                    <p className="mx-auto mt-4 max-w-2xl text-lg text-purple-200/80">
+                        Tired of basic anime recs that don't get your vibe?
                     </p>
-                </div>
-
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {features.map((card, index) => (
-                        <Card
-                            key={index}
-                            icon={card.icon}
-                            title={card.title}
-                            description={card.description}
-                        />
+                </Reveal>
+                <div className="grid gap-6 md:grid-cols-2">
+                    {[{ title: 'The problem', items: PROBLEMS, Icon: X, tone: 'text-rose-300 bg-rose-500/15' },
+                      { title: 'NextWeeb', items: SOLUTIONS, Icon: Check, tone: 'text-emerald-300 bg-emerald-500/15' }].map((col, c) => (
+                        <Reveal key={col.title} delay={c * 0.15}>
+                            <div className="card h-full p-8">
+                                <h3 className="mb-6 text-2xl font-bold">{col.title}</h3>
+                                <ul className="space-y-5">
+                                    {col.items.map((text, i) => (
+                                        <li key={i} className="flex items-start gap-3 text-purple-100/90">
+                                            <span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${col.tone}`}>
+                                                <col.Icon className="h-3.5 w-3.5" />
+                                            </span>
+                                            <p>{text}</p>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </Reveal>
                     ))}
                 </div>
-            </div>
-        </section>
+            </section>
 
-        {/* How It Works */}
-        <section id="how-it-works" className="px-4 sm:px-6 lg:px-8 py-20 bg-purple-900 bg-opacity-50">
-        <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold">How It Works</h2>
-            <p className="mt-4 text-lg text-purple-200 max-w-3xl mx-auto">
-                Get started in minutes, not hours.
-            </p>
-            </div>
+            {/* Features */}
+            <section id="features" className="mx-auto max-w-6xl scroll-mt-16 px-4 py-24 sm:px-8">
+                <Reveal className="mb-14 text-center">
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-[0.25em] text-pink-300">Features</p>
+                    <h2 className="text-3xl font-bold tracking-tight sm:text-5xl">Everything your MAL list can tell you</h2>
+                </Reveal>
+                <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                    {FEATURES.map((f, i) => (
+                        <Reveal key={f.title} delay={(i % 3) * 0.1}>
+                            <motion.div
+                                whileHover={{ y: -6 }}
+                                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                                className="card group relative h-full overflow-hidden"
+                            >
+                                <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-pink-500/0 blur-3xl transition duration-500 group-hover:bg-pink-500/20" />
+                                <div className="icon mb-5 transition duration-300 group-hover:rotate-6 group-hover:scale-110">
+                                    <f.icon className="h-5 w-5" />
+                                </div>
+                                <h3 className="mb-2 text-xl font-bold">{f.title}</h3>
+                                <p className="text-purple-200/75">{f.description}</p>
+                            </motion.div>
+                        </Reveal>
+                    ))}
+                </div>
+            </section>
 
-            <div className="grid md:grid-cols-4 gap-8">
-                {steps.map((step) => (
-                    <HowItWorksCard
-                        key={step.number}
-                        number={step.number}
-                        title={step.title}
-                        description={step.description}
+            {/* How it works */}
+            <section id="how-it-works" className="mx-auto max-w-6xl scroll-mt-16 px-4 py-24 sm:px-8">
+                <Reveal className="mb-16 text-center">
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-[0.25em] text-pink-300">How it works</p>
+                    <h2 className="text-3xl font-bold tracking-tight sm:text-5xl">Get started in minutes, not hours</h2>
+                </Reveal>
+                <div className="relative grid gap-10 md:grid-cols-4">
+                    {/* The line drawing itself across the steps */}
+                    <motion.div
+                        initial={{ scaleX: 0 }}
+                        whileInView={{ scaleX: 1 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+                        className="absolute left-[12%] right-[12%] top-7 hidden h-px origin-left bg-gradient-to-r from-pink-500 via-purple-500 to-pink-500 md:block"
                     />
-                ))}
-            </div>
-        </div>
-        </section>
+                    {STEPS.map((step, i) => (
+                        <Reveal key={step.title} delay={i * 0.15} className="relative text-center">
+                            <div className="relative mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-pink-500 to-purple-600 text-xl font-bold shadow-lg shadow-pink-500/30 ring-8 ring-ink">
+                                {i + 1}
+                            </div>
+                            <h3 className="mb-2 text-lg font-bold">{step.title}</h3>
+                            <p className="text-sm text-purple-200/75">{step.description}</p>
+                        </Reveal>
+                    ))}
+                </div>
+            </section>
 
-        {/* About */}
-        <section id="about" className="px-4 sm:px-6 lg:px-8 py-20">
-        <div className="max-w-7xl mx-auto">
-            <div className="text-center">
-            <h2 className="text-3xl md:text-4xl font-bold">About the Creator</h2>
-            <p className="mt-8 text-lg text-purple-200 max-w-3xl mx-auto">
-                Built by a weeb, for weebs. I'm a developer who loves anime and tech, and I created NextWeeb to solve the problem of finding anime that truly matches your unique taste.
-            </p>
-            <div className="mt-8">
-                <Link to={startPath} className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 px-6 py-3 rounded-full font-medium inline-flex items-center mx-auto">
-                Get Started Now
-                <ArrowRight className="ml-2 w-5 h-5" />
-                </Link>
-            </div>
-            </div>
-        </div>
-        </section>
+            {/* Closing call to action */}
+            <section className="px-4 py-24 sm:px-8">
+                <Reveal>
+                    <div className="relative mx-auto max-w-5xl overflow-hidden rounded-3xl border border-white/10 p-10 text-center sm:p-16">
+                        <PosterWall className="opacity-20" />
+                        <div className="absolute inset-0 bg-gradient-to-br from-pink-600/40 via-purple-800/70 to-ink/95" />
+                        <div className="relative">
+                            <h2 className="text-3xl font-bold tracking-tight sm:text-5xl">Built by a weeb, for weebs.</h2>
+                            <p className="mx-auto mt-4 max-w-xl text-lg text-purple-100/80">
+                                I made NextWeeb to find anime that actually matches my taste. Plug in your list and see what it finds for yours.
+                            </p>
+                            <Link to={startPath} className="btn-primary mt-8 px-8 py-4 text-lg">
+                                Get started <ArrowRight className="h-5 w-5" />
+                            </Link>
+                        </div>
+                    </div>
+                </Reveal>
+            </section>
 
-        {/* Footer */}
-        <Footer />
-    </div>
+            <Footer />
+        </div>
     );
 };
 
