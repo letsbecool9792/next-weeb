@@ -103,7 +103,7 @@ const Landing = () => {
             >
                 <motion.div
                     style={{ x: kanjiX, y: kanjiY, scale: kanjiScale }}
-                    className="absolute inset-y-0 -right-[10%] w-[120%] opacity-45 lg:right-[-6%] lg:w-[68%] lg:opacity-100"
+                    className="fade-edges absolute inset-y-0 -right-[10%] w-[120%] opacity-45 lg:right-[-6%] lg:w-[68%] lg:opacity-100"
                 >
                     {/* The covers show only inside the kanji: a dark layer multiplied over
                         them hides everything except where the white glyph is */}
@@ -167,11 +167,11 @@ const Landing = () => {
                         className="max-w-3xl text-5xl font-bold leading-[0.95] tracking-tight sm:text-7xl lg:text-[5.5rem]"
                     >
                         {HEADLINE.map((w) => (
-                            <motion.span key={w} variants={word} className="mr-[0.22em] inline-block">{w}</motion.span>
+                            <motion.span key={w} variants={word} className="-mb-[0.14em] mr-[0.22em] inline-block pb-[0.14em]">{w}</motion.span>
                         ))}
                         <br />
                         {HEADLINE_ACCENT.map((w) => (
-                            <motion.span key={w} variants={word} className="mr-[0.22em] inline-block text-gradient-animated">{w}</motion.span>
+                            <motion.span key={w} variants={word} className="-mb-[0.14em] mr-[0.22em] inline-block pb-[0.14em] text-gradient-animated">{w}</motion.span>
                         ))}
                     </motion.h1>
 

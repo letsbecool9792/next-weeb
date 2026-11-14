@@ -1,8 +1,19 @@
 @import "@fontsource-variable/space-grotesk";
 @import "@fontsource/silkscreen/400.css";
 @import "@fontsource/silkscreen/700.css";
-@import "@fontsource/dela-gothic-one/400.css";
 @import "tailwindcss";
+
+/*
+ * Dela Gothic One, cut down to just the characters the app draws itself
+ * (次 入口 迷子 おかえり 発見 一覧 探索 統計 私 一二三四 ネクストウィーブ): 4 kB
+ * instead of the full Japanese font. Any other Japanese text, like a show's
+ * title on its detail page, falls back to the system's Japanese font.
+ */
+@font-face {
+    font-family: "Dela Gothic One";
+    src: url("./assets/fonts/dela-gothic-one-nextweeb.woff2") format("woff2");
+    font-display: swap;
+}
 
 /*
  * Design tokens. The palette is the one the app always had (dark gray into
@@ -204,6 +215,14 @@
     /* Horizontal rows scroll without a visible scrollbar */
     .no-scrollbar { scrollbar-width: none; }
     .no-scrollbar::-webkit-scrollbar { display: none; }
+
+    /* Fade all four edges to transparent, so a layer blends into the page with no visible border */
+    .fade-edges {
+        mask-image:
+            linear-gradient(to right, transparent, #000 14%),
+            linear-gradient(to bottom, #000 82%, transparent);
+        mask-composite: intersect;
+    }
 
     .mask-fade-x {
         mask-image: linear-gradient(to right, transparent, black 4%, black 96%, transparent);
