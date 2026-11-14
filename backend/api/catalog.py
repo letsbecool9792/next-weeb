@@ -27,7 +27,7 @@ SHOW_FIELDS = ",".join([
     "num_list_users", "media_type", "num_episodes", "start_season", "rating",
 ])
 UPDATE_FIELDS = [
-    "title", "image_url", "genres", "studios", "mean", "popularity", "num_list_users",
+    "title", "image_url", "image_large", "genres", "studios", "mean", "popularity", "num_list_users",
     "media_type", "num_episodes", "start_year", "rating",
 ]
 
@@ -37,6 +37,7 @@ def _show_values(node):
     return {
         "title": node.get("title", "")[:255],
         "image_url": (node.get("main_picture") or {}).get("medium"),
+        "image_large": (node.get("main_picture") or {}).get("large"),
         "genres": [g["name"] for g in node.get("genres") or []],
         "studios": [s["name"] for s in node.get("studios") or []],
         "mean": node.get("mean"),

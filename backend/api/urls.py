@@ -5,6 +5,7 @@ from .views import auth, chat, library, recommendations, system, tokens
 urlpatterns = [
     # Health check
     path('health/', system.health_check, name='health_check'),
+    path('showcase/', system.showcase, name='showcase'),
 
     # PostHog proxy to bypass ad blockers - catch all paths
     re_path(r'^posthog/(?P<path>.*)$', system.posthog_proxy, name='posthog_proxy'),

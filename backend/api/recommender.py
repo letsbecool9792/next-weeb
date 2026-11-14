@@ -254,6 +254,7 @@ def card(anime, reason, image=None, title=None, mean=None):
         "id": anime.mal_id if anime else None,
         "title": title or anime.title,
         "image": image or (anime.image_url if anime else None),
+        "image_large": anime.image_large if anime else None,  # for the page's banner
         "score": mean if mean is not None else (anime.mean if anime else None),
         "reason": reason,
     }
@@ -392,7 +393,8 @@ def build_recommendations(user, regenerate=False):
         return f"Continues {started}, which is on your list" if started else reason_for(e, taste, {})
 
     result["plan_to_watch"] = [
-        {"id": e.mal_id, "title": e.title, "image": e.image_url, "score": e.mean, "reason": ptw_reason(e)}
+        {"id": e.mal_id, "title": e.title, "image": e.image_url, "image_large": e.image_large,
+         "score": e.mean, "reason": ptw_reason(e)}
         for e in ptw
     ]
 

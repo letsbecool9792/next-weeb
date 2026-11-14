@@ -74,6 +74,7 @@ def get_cached_anime_list(request):
         "mal_id",
         "title",
         "image_url",
+        "image_large",
         "status",
         "score",
         "episodes_watched",

@@ -29,6 +29,7 @@ class AnimeEntry(models.Model):
     mal_id = models.IntegerField()
     title = models.CharField(max_length=255)
     image_url = models.URLField(blank=True, null=True)
+    image_large = models.URLField(blank=True, null=True)  # bigger cover, for banners
     status = models.CharField(max_length=50)
     score = models.FloatField(null=True, blank=True)
     episodes_watched = models.IntegerField(null=True, blank=True)
@@ -65,6 +66,7 @@ class Anime(models.Model):
     mal_id = models.IntegerField(primary_key=True)
     title = models.CharField(max_length=255)
     image_url = models.URLField(blank=True, null=True)
+    image_large = models.URLField(blank=True, null=True)  # bigger cover, for banners
     genres = models.JSONField(default=list)    # list of genre names
     studios = models.JSONField(default=list)   # list of studio names
     mean = models.FloatField(null=True, blank=True)            # community score

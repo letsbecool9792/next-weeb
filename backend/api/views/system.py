@@ -12,6 +12,33 @@ from rest_framework.response import Response
 logger = logging.getLogger(__name__)
 
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def showcase(request):
+    """
+    Covers of popular shows for the landing page's poster wall. Public (the
+    visitor is not logged in yet) and read from our catalog, so it never
+    calls MAL. Cached for 6 hours.
+    """
+    from django.core.cache import cache
+
+    from ..catalog import ensure_catalog
+    from ..models import Anime
+
+    data = cache.get("showcase:v1")
+    if data is None:
+        ensure_catalog()
+        shows = (
+            Anime.objects.filter(in_catalog=True, mean__gte=8, popularity__lte=600)
+            .exclude(image_url=None)
+            .exclude(rating__in=["r+", "rx"])
+            .order_by("popularity")[:72]
+        )
+        data = [{"id": a.mal_id, "title": a.title, "image": a.image_url} for a in shows]
+        cache.set("showcase:v1", data, 6 * 60 * 60)
+    return Response(data)
+
+
 @csrf_exempt
 @api_view(['GET'])
 @permission_classes([AllowAny])

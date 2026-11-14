@@ -80,6 +80,7 @@ def build_entry(user, item):
         mal_id=anime["id"],
         title=anime.get("title", ""),
         image_url=(anime.get("main_picture") or {}).get("medium"),
+        image_large=(anime.get("main_picture") or {}).get("large"),
         # the user's own record
         status=status.get("status", ""),
         score=status.get("score"),

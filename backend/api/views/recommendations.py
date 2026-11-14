@@ -18,7 +18,7 @@ def cache_key(user):
     """
     profile = UserProfile.objects.filter(user=user).only("last_synced_at").first()
     synced = profile.last_synced_at.timestamp() if profile and profile.last_synced_at else 0
-    return f"recs:v3:{user.id}:{synced:.0f}"
+    return f"recs:v4:{user.id}:{synced:.0f}"
 
 
 def get_cached_recommendations(user, regenerate=False):
