@@ -34,12 +34,16 @@ MAL redirects back to `http://localhost:5173/auth/callback` (local) and `https:/
 
 | File | What it does |
 |---|---|
-| `api/mal.py` | Every call to MAL. Stores/refreshes MAL tokens, raises `MalReauthRequired` (403, `code: mal_reauth_required`), `MalUnavailable` (502), `MalNotFound` (404). |
-| `api/sync.py` | Copies the user's full MAL list into `AnimeEntry` rows (paged, atomic). `ensure_synced` runs the first sync automatically. |
-| `api/jwt_views.py` | Token refresh (rotating, blacklisting) and logout. |
+| `api/mal.py` | Every call to MAL. `mal_get` (as a user, refreshes MAL tokens) and `public_get` (app client id only). Raises `MalReauthRequired` (403, `code: mal_reauth_required`), `MalUnavailable` (502), `MalNotFound` (404). |
+| `api/sync.py` | Copies the user's full MAL list into `AnimeEntry` rows (paged, atomic, with show details). `ensure_synced` runs the first sync automatically. |
+| `api/catalog.py` | Shared `Anime` table: MAL's top 5,000 shows by popularity, plus on-demand show details (MAL community recommendations, related shows), reused for 30 days. |
+| `api/recommender.py` | Taste profile (rarity-weighted genres, studios, favourite shows), scoring, and every recommendations section with a reason per pick. |
 | `api/throttles.py` | Rate limits; rates are in `settings.REST_FRAMEWORK`. Counters live in a database cache table. |
-| `api/views.py` | All other endpoints. |
-| `build.sh` | Render build: install, collectstatic, migrate, createcachetable, flushexpiredtokens. |
+| `api/views/` | Endpoints by area: `auth` (OAuth), `tokens` (JWT refresh, logout), `library` (profile, list, stats, detail, search), `recommendations` (cached per user until next sync), `chat` (Gemini), `system` (health, PostHog proxy). |
+| `api/management/commands/refresh_catalog.py` | `manage.py refresh_catalog`; never fails the build. |
+| `build.sh` | Render build: install, collectstatic, migrate, createcachetable, flushexpiredtokens, refresh_catalog. |
+
+Optional env var: `GEMINI_MODEL` (default `gemini-2.5-flash`).
 
 ## History
 
@@ -65,15 +69,15 @@ Status per step: **[x] done** · local = owner tested locally · render = owner 
 ### Security and robustness
 - [x] **3. Lock down the surface.** Removed public `/api/debug-config/` and unused session-era endpoints, stopped logging OAuth secrets, `DEBUG` defaults off, cross-site cookie settings removed, HSTS and proxy-SSL settings in production. *local ✓ render ✓*
 - [x] **4. Real OAuth flow.** Browser generates PKCE verifier and `state`, verifies `state` on return; MAL redirects to the frontend. Backend exposes `/api/oauth-config/` and `/api/exchange-token/`. *local ✓ render ✓* — `MAL_REDIRECT_URI` removed from Render; old backend callback URLs removed from MAL.
-- [x] **5. MAL token lifecycle.** Refresh token + expiry stored, automatic refresh in `api/mal.py`, frontend redirects to login with an "expired" notice on `mal_reauth_required`. *local: 4 of 5 checks ✓; reconnect check to redo (press Sync Library, not reload) · render pending*
+- [x] **5. MAL token lifecycle.** Refresh token + expiry stored, automatic refresh in `api/mal.py`, frontend redirects to login with an "expired" notice on `mal_reauth_required`. *local: 4 of 5 checks ✓; reconnect check to redo (press Sync Library or open an anime, not a reload: the list page reads only our database) · render pending*
 - [x] **6. JWT hardening.** 15-minute access tokens, rotating + blacklisted refresh tokens, `POST /api/logout/` revokes, refresh rejects deleted/inactive users, rate limits on login, refresh, AI chat, sync. *local ✓ · render pending*
 - [x] **7. Sync done properly.** Paged (no 1,000 cap), includes NSFW titles from the user's own list, atomic swap, show details stored on `AnimeEntry`, stats read from the database, first sync automatic, sync endpoints POST-only. *local ✓ · render pending*
 
 ### Recommendations
-- [ ] **8. Split views and fix dead inputs.** Break `views.py` into modules (no behaviour change); request the anchor's score and popularity (always 0 / 99999 before); stop writing debug files.
-- [ ] **9. Local anime catalog.** A table of popular anime filled from MAL rankings, replacing title text search for the genre, studio and hidden-gems sections.
-- [ ] **10. Better scoring.** Taste profile where rare genres weigh more, MAL's community "if you liked X" data as a second signal, a reason on every pick, a plan-to-watch section, results cached per user.
-- [ ] **11. AI chat.** Multi-turn, grounded in the taste profile and real unwatched candidates, returns clickable anime cards.
+- [x] **8. Split views and fix dead inputs.** `views.py` split into `api/views/` + `api/recommender.py` (pure move); anchor score and popularity now requested; no more debug files. *local pending · render pending*
+- [x] **9. Local anime catalog.** `Anime` table with MAL's top 5,000 shows, filled by `refresh_catalog` on every deploy; show details fetched in parallel on demand. *local pending · render pending*
+- [x] **10. Better scoring.** New engine: weighted taste (scores vs the user's own average, dropped shows count against), rarity (idf) weighting, MAL community picks for the user's favourites, a reason per pick, new Top Picks and Plan to Watch sections, no sequels/films of unseen shows, cached per user until the next sync, `?regenerate=1`. Page shows a taste summary and an error with retry. *local pending · render pending*
+- [x] **11. AI chat.** Multi-turn; server builds the context (favourites, dropped, taste, ~200 unwatched candidates + Plan to Watch); Gemini answers in JSON with candidate ids, unknown ids dropped; picks shown as cards; uses `authFetch`. *local pending · render pending*
 
 ### Leftovers
 - [ ] **12. Frontend structure.** Auth context and protected routes instead of passing `setIsLoggedIn` everywhere; client-side links; clean ESLint run.
@@ -86,4 +90,6 @@ Out of scope for now: writing changes back to MAL (list management).
 
 - IP-based rate limits trust `X-Forwarded-For`; a determined client can dodge them.
 - MAL only supports "plain" PKCE, so the verifier appears in the URL sent to MAL; the `state` check is the main protection.
-- Pages that read only our database (list, dashboard, stats) do not notice an expired MAL connection until something calls MAL (sync, detail, search, recommendations).
+- Pages that read only our database (list, dashboard, stats, recommendations) do not notice an expired MAL connection until something calls MAL as the user (sync, profile sync, detail, search).
+- Recommendations only consider MAL's 5,000 most popular shows. Franchise matching (`base_title`, `looks_like_follow_up`) is title-based and imperfect, e.g. "K-On!!" is not recognised as a sequel.
+- `backend/debug_recommendations/` holds old local debug output (git-ignored); nothing writes there any more and it can be deleted.
