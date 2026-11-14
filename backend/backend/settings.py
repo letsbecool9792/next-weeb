@@ -78,14 +78,10 @@ INSTALLED_APPS = [
     'corsheaders',
 
     'api',
-
-    'oauth2_provider',
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware', 
-
-    'oauth2_provider.middleware.OAuth2TokenMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
 
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Add WhiteNoise for static files
