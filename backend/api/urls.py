@@ -2,7 +2,8 @@ from django.urls import path, re_path
 from .views import oauth_config, exchange_oauth_token, sync_mal_profile, cached_mal_profile
 from .views import sync_anime_list, get_cached_anime_list
 from .views import anime_detail, search_anime, get_stats_data, health_check
-from .views import get_recommendations, ai_recommendation_chat, posthog_proxy, refresh_jwt_token
+from .views import get_recommendations, ai_recommendation_chat, posthog_proxy
+from .jwt_views import RefreshView, LogoutView
 
 urlpatterns = [
     # Health check
@@ -14,7 +15,8 @@ urlpatterns = [
     # OAuth and JWT auth
     path('oauth-config/', oauth_config, name='oauth_config'),
     path('exchange-token/', exchange_oauth_token, name='exchange_oauth_token'),
-    path('token/refresh/', refresh_jwt_token, name='refresh_jwt_token'),
+    path('token/refresh/', RefreshView.as_view(), name='token_refresh'),
+    path('logout/', LogoutView.as_view(), name='logout'),
 
     path('sync-profile/', sync_mal_profile, name = 'sync_mal_profile'),
     path('cached-profile/', cached_mal_profile, name = 'cached_mal_profile'),

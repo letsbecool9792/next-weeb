@@ -10,7 +10,7 @@ import json
 # Configure logging
 logger = logging.getLogger(__name__)
 
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAuthenticated
@@ -26,6 +26,7 @@ from .models import AnimeEntry
 from .models import UserProfile
 from . import mal
 from .mal import mal_get, MalNotFound, MalUnavailable
+from .throttles import AiChatThrottle, LoginThrottle
 
 # MAL Genre ID mapping (fetched from MAL API)
 GENRE_IDS = {
@@ -134,6 +135,7 @@ def oauth_config(request):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@throttle_classes([LoginThrottle])
 def exchange_oauth_token(request):
     """
     Second half of the MAL login.
@@ -210,38 +212,6 @@ def exchange_oauth_token(request):
     except Exception as e:
         logger.error(f"[exchange_oauth_token] Exception: {str(e)}", exc_info=True)
         return Response({"error": "Something went wrong on our side. Please try again."}, status=500)
-
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def refresh_jwt_token(request):
-    """
-    Refresh JWT access token using refresh token.
-    """
-    from rest_framework_simplejwt.tokens import RefreshToken
-    from rest_framework_simplejwt.exceptions import TokenError
-
-    refresh_token = request.data.get('refresh')
-
-    if not refresh_token:
-        return Response({"error": "Refresh token required"}, status=400)
-
-    try:
-        # Validate and decode refresh token
-        refresh = RefreshToken(refresh_token)
-
-        # Generate new access token
-        new_access_token = str(refresh.access_token)
-
-        return Response({
-            "access": new_access_token,
-        }, status=200)
-
-    except TokenError as e:
-        logger.error(f"[refresh_jwt_token] Invalid refresh token: {str(e)}")
-        return Response({"error": "Invalid or expired refresh token"}, status=401)
-    except Exception as e:
-        logger.error(f"[refresh_jwt_token] Error: {str(e)}", exc_info=True)
-        return Response({"error": "Token refresh failed"}, status=500)
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
@@ -997,6 +967,7 @@ def find_hidden_gems(user, genres, watched_ids):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@throttle_classes([AiChatThrottle])
 def ai_recommendation_chat(request):
     """
     AI chatbot for recommendations - enhances algorithm results with natural language

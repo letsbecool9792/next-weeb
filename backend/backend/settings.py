@@ -76,6 +76,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',  # table of revoked refresh tokens
     'corsheaders',
 
     'api',
@@ -163,6 +164,16 @@ else:
         }
     }
 
+# Shared cache in a database table (created by `manage.py createcachetable`).
+# Rate-limit counters live here. Django's default in-memory cache would give
+# every server process its own counters and forget them on each restart.
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'django_cache',
+    }
+}
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
@@ -221,16 +232,24 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    # Rate limits, by the scope names in api/throttles.py
+    'DEFAULT_THROTTLE_RATES': {
+        'login': '10/min',
+        'token_refresh': '30/min',
+        'ai_chat': '20/hour',
+    },
 }
 
 # JWT Settings
 from datetime import timedelta
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
+    # Sent with every request. Short-lived, so a leaked one is useful only briefly.
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    # Used only to get a new pair. Each use resets this 30-day clock.
     'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
-    'ROTATE_REFRESH_TOKENS': False,
-    'BLACKLIST_AFTER_ROTATION': False,
-    'UPDATE_LAST_LOGIN': True,
+    # Every refresh returns a new refresh token and blacklists the one just used.
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': SECRET_KEY,
     'AUTH_HEADER_TYPES': ('Bearer',),
