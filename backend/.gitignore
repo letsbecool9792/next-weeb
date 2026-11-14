@@ -4,7 +4,6 @@ db.sqlite3
 .env
 .env.development
 .env.production
-.env.example
 staticfiles/
 media/
 *.pyc

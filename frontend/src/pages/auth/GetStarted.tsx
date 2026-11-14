@@ -54,12 +54,12 @@ const GetStarted = () => {
     {
         icon: <BarChart2 className="text-white" />,
         title: "Taste Analyzer",
-        description: "See what genres, studios and themes you gravitate towards"
+        description: "See what genres and studios you gravitate towards"
     },
     {
         icon: <List className="text-white" />,
-        title: "Watchlist Enhancer",
-        description: "Better 'Plan to Watch' suggestions based on your history"
+        title: "Plan to Watch, Ranked",
+        description: "Know which show on your Plan to Watch to start next"
     }
     ];
 
@@ -90,7 +90,7 @@ const GetStarted = () => {
             <h1 className="text-4xl md:text-5xl font-bold mb-4">Connect Your MAL Account</h1>
             <p className="text-xl text-purple-200 max-w-2xl mx-auto">
             We use your MAL history to give you smarter recommendations, breakdowns, and insights. 
-            You stay in control — we just need read access.
+            NextWeeb only reads your list. It never changes anything on MyAnimeList.
             </p>
         </div>
         
@@ -106,8 +106,8 @@ const GetStarted = () => {
                 <Shield className="h-12 w-12 text-purple-300" />
             </div>
             <p className="text-center mb-8 text-purple-200">
-                We only request read access to your MyAnimeList data. 
-                Your password is never shared with us, and you can revoke access anytime.
+                You log in on MyAnimeList's own page, so your password never reaches us.
+                NextWeeb only reads your list and profile; it never edits them.
             </p>
             <button
                 onClick={handleMALLogin}

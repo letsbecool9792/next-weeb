@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ChevronRight, BarChart2, Filter, List, Zap, Award, CircleCheck, Menu, X } from 'lucide-react';
+import { ArrowRight, ChevronRight, BarChart2, Filter, List, Zap, MessageCircle, CircleCheck, Menu, X } from 'lucide-react';
 
 import Card from '../components/Card';
 import Footer from '../components/Footer';
@@ -13,32 +13,34 @@ const Landing = () => {
     const startPath = isLoggedIn ? '/dashboard' : '/get-started';
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+    // Only features that exist. The old list promised custom lists, theme and
+    // mood analysis, and adding shows to your Plan to Watch.
     const features = [
         {
             icon: <Zap className="text-white" />,
-            title: "Smart Recommendations",
+            title: "Recommendations That Explain Themselves",
             description:
-            "Get personalized anime recommendations based on your watching history, favorite genres, and studio preferences.",
+            "Picks built from your ratings and from what fans of your favourite shows recommend. Every pick says why it was chosen.",
+        },
+        {
+            icon: <MessageCircle className="text-white" />,
+            title: "An AI That Knows Your List",
+            description: "Ask for \"something short and wholesome\". It only suggests shows you haven't seen, as cards you can click.",
         },
         {
             icon: <BarChart2 className="text-white" />,
             title: "Taste Analyzer",
-            description: "Breaks down your MAL profile: genres, themes, studios, moods, and viewing patterns to understand your preferences."
+            description: "Your top genres and studios, rating spread, media types and total watch time across everything you've finished."
         },
         {
             icon: <List className="text-white" />,
-            title: "Custom Lists & Sorting",
-            description: "Build your own anime lists. Filter by score, studio, year, genre, and more to organize your collection."
-        },
-        {
-            icon: <Award className="text-white" />,
-            title: "Studio & Genre Explorers",
-            description: "See top shows by your favorite studios. Discover niche genres you never knew you'd love."
+            title: "Your Whole List, Fast",
+            description: "Your full MAL list synced and cached. Filter by status and sort by score, episodes or last update."
         },
         {
             icon: <Filter className="text-white" />,
-            title: "Watchlist Boosting",
-            description: "Adds better suggestions to your Plan to Watch that fit your taste profile and viewing patterns."
+            title: "Plan to Watch, Ranked",
+            description: "Find out which show already on your Plan to Watch fits your taste best, so you know what to start next."
         },
         {
             icon: <CircleCheck className="text-white" />,
@@ -216,7 +218,7 @@ const Landing = () => {
                 </li>
                 <li className="flex items-start">
                     <ChevronRight className="text-pink-400 mr-2 flex-shrink-0" />
-                    <p>Explore genres, studios, and themes tailored to <span className="font-bold text-pink-300">you</span>.</p>
+                    <p>See the genres and studios that define your taste, tailored to <span className="font-bold text-pink-300">you</span>.</p>
                 </li>
                 <li className="flex items-start">
                     <ChevronRight className="text-pink-400 mr-2 flex-shrink-0" />
