@@ -69,20 +69,23 @@ Status per step: **[x] done** · local = owner tested locally · render = owner 
 ### Security and robustness
 - [x] **3. Lock down the surface.** Removed public `/api/debug-config/` and unused session-era endpoints, stopped logging OAuth secrets, `DEBUG` defaults off, cross-site cookie settings removed, HSTS and proxy-SSL settings in production. *local ✓ render ✓*
 - [x] **4. Real OAuth flow.** Browser generates PKCE verifier and `state`, verifies `state` on return; MAL redirects to the frontend. Backend exposes `/api/oauth-config/` and `/api/exchange-token/`. *local ✓ render ✓* — `MAL_REDIRECT_URI` removed from Render; old backend callback URLs removed from MAL.
-- [x] **5. MAL token lifecycle.** Refresh token + expiry stored, automatic refresh in `api/mal.py`, frontend redirects to login with an "expired" notice on `mal_reauth_required`. *local: 4 of 5 checks ✓; reconnect check to redo (press Sync Library or open an anime, not a reload: the list page reads only our database) · render pending*
+- [x] **5. MAL token lifecycle.** Refresh token + expiry stored, automatic refresh in `api/mal.py`, frontend redirects to login with an "expired" notice on `mal_reauth_required`. *local ✓ · render pending*
 - [x] **6. JWT hardening.** 15-minute access tokens, rotating + blacklisted refresh tokens, `POST /api/logout/` revokes, refresh rejects deleted/inactive users, rate limits on login, refresh, AI chat, sync. *local ✓ · render pending*
 - [x] **7. Sync done properly.** Paged (no 1,000 cap), includes NSFW titles from the user's own list, atomic swap, show details stored on `AnimeEntry`, stats read from the database, first sync automatic, sync endpoints POST-only. *local ✓ · render pending*
 
 ### Recommendations
-- [x] **8. Split views and fix dead inputs.** `views.py` split into `api/views/` + `api/recommender.py` (pure move); anchor score and popularity now requested; no more debug files. *local pending · render pending*
-- [x] **9. Local anime catalog.** `Anime` table with MAL's top 5,000 shows, filled by `refresh_catalog` on every deploy; show details fetched in parallel on demand. *local pending · render pending*
-- [x] **10. Better scoring.** New engine: weighted taste (scores vs the user's own average, dropped shows count against), rarity (idf) weighting, MAL community picks for the user's favourites, a reason per pick, new Top Picks and Plan to Watch sections, no sequels/films of unseen shows, cached per user until the next sync, `?regenerate=1`. Page shows a taste summary and an error with retry. *local pending · render pending*
-- [x] **11. AI chat.** Multi-turn; server builds the context (favourites, dropped, taste, ~200 unwatched candidates + Plan to Watch); Gemini answers in JSON with candidate ids, unknown ids dropped; picks shown as cards; uses `authFetch`. *local pending · render pending*
+- [x] **8. Split views and fix dead inputs.** `views.py` split into `api/views/` + `api/recommender.py` (pure move); anchor score and popularity now requested; no more debug files. *local ✓ · render pending*
+- [x] **9. Local anime catalog.** `Anime` table with MAL's top 5,000 shows, filled by `refresh_catalog` on every deploy; show details fetched in parallel on demand. *local ✓ · render pending*
+- [x] **10. Better scoring.** New engine: weighted taste (scores vs the user's own average, dropped shows count against), rarity (idf) weighting, MAL community picks for the user's favourites, a reason per pick, new Top Picks and Plan to Watch sections, no sequels/films of unseen shows, cached per user until the next sync, `?regenerate=1`. Page shows a taste summary and an error with retry. *local ✓ · render pending*
+- [x] **11. AI chat.** Multi-turn; server builds the context (favourites, dropped, taste, ~200 unwatched candidates + Plan to Watch); Gemini answers in JSON with candidate ids, unknown ids dropped; picks shown as cards; uses `authFetch`. *local ✓ · render pending*
 
 ### Leftovers
-- [ ] **12. Frontend structure.** Auth context and protected routes instead of passing `setIsLoggedIn` everywhere; client-side links; clean ESLint run.
-- [ ] **13. UI bugs.** NaN average score, dead buttons, missing placeholder images, duplicate empty states, dashboard spinning forever when the backend is down.
-- [ ] **14. Docs and honesty.** Rewrite the README; landing page matches real features; tracked `.env.example`; fix the stale `.vscode/launch.json`.
+- [x] **12. Frontend structure.** `src/auth/` (AuthProvider, useAuth, RequireAuth); protected routes wrap every logged-in page; no more `setIsLoggedIn` props; NavLink with active state; header shows the MAL picture; ESLint clean. *local pending · render pending*
+- [x] **13. UI bugs.** Error state with retry on every data page (dashboard used to spin forever); NaN averages; capped "Watching" and "Perfect 10s" counts; dead "Return to List"; detail page crash on missing MAL fields; broken profile avatar; duplicate empty states; unclickable list rows; "Invalid Date"; search is one request (was seven) and reports errors and short queries. Shared `Poster`, `ErrorState`, `utils/format.ts`. *local pending · render pending*
+- [x] **14. Docs and honesty.** README rewritten; landing and login copy only claims features that exist (no "read-only access" claim: MAL has no such scope); tracked `backend/.env.example` and `frontend/.env.example`; `.vscode/launch.json` points at `backend/manage.py` on port 8000; Vite template README removed. *local pending · render pending*
+
+### UI overhaul (next)
+- [ ] **15. Visual redesign** of the landing page and every app page. Keep the current colour palette (purple/pink/fuchsia gradients on dark). Direction to be agreed with the owner first.
 
 Out of scope for now: writing changes back to MAL (list management).
 
