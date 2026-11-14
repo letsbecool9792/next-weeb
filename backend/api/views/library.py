@@ -133,7 +133,9 @@ def get_stats_data(request):
     completed = AnimeEntry.objects.filter(user=request.user, status="completed")
     return Response([
         {
+            "mal_id": entry.mal_id,
             "title": entry.title,
+            "image": entry.image_url,
             "score": entry.score or 0,
             "genres": entry.genres,
             "studios": entry.studios,

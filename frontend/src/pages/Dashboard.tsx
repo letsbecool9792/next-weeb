@@ -1,50 +1,30 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { RefreshCw, TrendingUp, BarChart2, Clock, Film, Star, ArrowRight, Play, Search } from 'lucide-react';
-import Header from '../components/Header';
-import Footer from '../components/Footer';
-import LoadingScreen from '../components/LoadingScreen';
+import { motion } from 'motion/react';
+import { RefreshCw, TrendingUp, BarChart2, Clock, Film, Star, ArrowRight, Play, Sparkles, ListChecks } from 'lucide-react';
+import AppShell from '../components/AppShell';
 import ErrorState from '../components/ErrorState';
-import Poster from '../components/Poster';
-import { averageScore, LOAD_ERROR } from '../utils/format';
+import HeroBanner from '../components/ui/HeroBanner';
+import Row from '../components/ui/Row';
+import PosterCard from '../components/ui/PosterCard';
+import CountUp from '../components/ui/CountUp';
+import Reveal from '../components/ui/Reveal';
+import { HeroSkeleton, RowSkeleton } from '../components/ui/Skeleton';
 import { API_URL } from '../config';
 import { authFetch } from '../utils/fetch';
-
-type Profile = {
-    name: string;
-    picture: string;
-};
-
-type AnimeEntry = {
-    mal_id: number;
-    title: string;
-    image_url: string;
-    status: string;
-    score: number;
-    episodes_watched: number;
-    last_updated: string | null;
-};
-
-type StatsData = {
-    title: string;
-    score: number;
-    genres: string[];
-    num_episodes: number;
-    average_episode_duration: number;
-};
+import { averageScore, LOAD_ERROR } from '../utils/format';
+import { STATUS_LABELS, type ListEntry, type Profile, type StatsEntry } from '../types';
 
 const Dashboard = () => {
     const [profile, setProfile] = useState<Profile | null>(null);
-    const [animeList, setAnimeList] = useState<AnimeEntry[]>([]);
-    const [statsData, setStatsData] = useState<StatsData[]>([]);
+    const [animeList, setAnimeList] = useState<ListEntry[]>([]);
+    const [statsData, setStatsData] = useState<StatsEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
-
     const [error, setError] = useState('');
     const [syncMessage, setSyncMessage] = useState('');
 
     const loadData = useCallback(async () => {
-        setLoading(true);
         setError('');
         try {
             // The three requests do not depend on each other, so run them together
@@ -60,7 +40,6 @@ const Dashboard = () => {
             setAnimeList(await animeRes.json());
             setStatsData(await statsRes.json());
         } catch {
-            // Before, a failed request left the page on its loading spinner forever
             setError(LOAD_ERROR);
         } finally {
             setLoading(false);
@@ -78,12 +57,13 @@ const Dashboard = () => {
             if (listRes.status === 429 || profileRes.status === 429) {
                 setSyncMessage('You synced a lot just now. Wait a minute and try again.');
             } else if (!listRes.ok || !profileRes.ok) {
-                setSyncMessage("Sync failed. MyAnimeList may be down; try again shortly.");
+                setSyncMessage('Sync failed. MyAnimeList may be down; try again shortly.');
             } else {
                 await loadData();
+                setSyncMessage('Synced with MyAnimeList.');
             }
         } catch {
-            setSyncMessage("Sync failed. Check your connection and try again.");
+            setSyncMessage('Sync failed. Check your connection and try again.');
         } finally {
             setSyncing(false);
         }
@@ -95,307 +75,210 @@ const Dashboard = () => {
 
     if (loading) {
         return (
-            <div className="bg-gradient-to-b from-gray-900 to-fuchsia-950">
-                <LoadingScreen message="Loading your dashboard..." />
-            </div>
+            <AppShell>
+                <HeroSkeleton />
+                <RowSkeleton />
+                <RowSkeleton />
+            </AppShell>
         );
     }
 
     if (error) {
         return (
-            <div className="min-h-screen bg-gradient-to-b from-gray-900 to-fuchsia-950 text-white">
-                <Header />
+            <AppShell>
+                <div className="pt-24" />
                 <ErrorState message={error} onRetry={loadData} />
-            </div>
+            </AppShell>
         );
     }
 
     // Newest first. Copy before sorting: sort() reorders in place, and this is React state.
-    const updatedTime = (a: AnimeEntry) => (a.last_updated ? new Date(a.last_updated).getTime() : 0);
+    const updatedTime = (a: ListEntry) => (a.last_updated ? new Date(a.last_updated).getTime() : 0);
     const byRecent = [...animeList].sort((a, b) => updatedTime(b) - updatedTime(a));
+    const watching = byRecent.filter((a) => a.status === 'watching');
+    const planToWatch = byRecent.filter((a) => a.status === 'plan_to_watch');
+    const featured = watching[0] ?? byRecent[0];
 
-    // All shows being watched (the count), and the six most recent (the row)
-    const watchingAll = byRecent.filter(anime => anime.status === 'watching');
-    const watchingAnime = watchingAll.slice(0, 6);
+    // Quick stats, from completed shows
+    const totalMinutes = statsData.reduce((t, a) => t + ((a.num_episodes || 0) * (a.average_episode_duration || 0)) / 60, 0);
+    const average = averageScore(statsData.map((a) => a.score));
 
-    // Calculate quick stats
-    const totalCompleted = statsData.length;
-    const totalTimeMinutes = statsData.reduce((total, anime) => {
-        const eps = anime.num_episodes || 0;
-        const dur = anime.average_episode_duration || 0;
-        return total + (eps * dur) / 60;
-    }, 0);
-    const totalDays = Math.floor(totalTimeMinutes / 60 / 24);
+    const genreCounts = new Map<string, number>();
+    statsData.forEach((a) => a.genres?.forEach((g) => genreCounts.set(g, (genreCounts.get(g) || 0) + 1)));
+    const topGenres = [...genreCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+    const topGenreMax = topGenres[0]?.[1] ?? 1;
 
-    // "–" when nothing is rated yet (this used to show NaN)
-    const average = averageScore(statsData.map(a => a.score));
-    const avgScore = average === null ? '–' : average.toFixed(1);
+    const firstName = profile?.name || 'there';
 
-    // Top genres
-    const genreMap = new Map<string, number>();
-    statsData.forEach(anime => {
-        anime.genres?.forEach(genre => {
-            genreMap.set(genre, (genreMap.get(genre) || 0) + 1);
-        });
-    });
-    const topGenres = Array.from(genreMap.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([name]) => name);
+    const tiles = [
+        { label: 'Completed', icon: Film, value: statsData.length, decimals: 0, empty: false },
+        { label: 'Days watched', icon: Clock, value: totalMinutes / 60 / 24, decimals: 1, empty: false },
+        { label: 'Average score', icon: Star, value: average ?? 0, decimals: 1, empty: average === null },
+        { label: 'Watching', icon: Play, value: watching.length, decimals: 0, empty: false },
+    ];
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-gray-900 to-fuchsia-950 text-white">
-            <Header />
-
-            <div className="container mx-auto px-4 py-8">
-                {/* Welcome Section */}
-                <div className="card mb-8">
-                    <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                        <div className="flex items-center gap-4">
-                            {profile?.picture && (
-                                <img
-                                    src={profile.picture}
-                                    alt={profile.name}
-                                    className="w-20 h-20 rounded-full border-2 border-purple-500"
-                                />
-                            )}
-                            <div>
-                                <h1 className="text-3xl font-bold">
-                                    Welcome back, <span className="bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
-                                        {profile?.name || 'User'}
-                                    </span>!
-                                </h1>
-                                <p className="text-purple-300 mt-1">Ready to continue your anime journey?</p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={handleSync}
-                            disabled={syncing}
-                            className="btn-primary gap-2"
-                        >
-                            <RefreshCw className={`w-5 h-5 ${syncing ? 'animate-spin' : ''}`} />
-                            {syncing ? 'Syncing...' : 'Sync Now'}
+        <AppShell>
+            <HeroBanner
+                image={featured?.image_large ?? featured?.image_url}
+                poster={featured?.image_url ?? null}
+                eyebrow={
+                    featured
+                        ? `Welcome back, ${firstName} · ${featured.status === 'watching' ? 'Continue watching' : 'Last updated'}`
+                        : `Welcome, ${firstName}`
+                }
+                title={featured?.title ?? 'Your anime journey starts here'}
+                meta={
+                    featured && (
+                        <>
+                            <span className="chip">{STATUS_LABELS[featured.status] ?? featured.status}</span>
+                            {featured.episodes_watched ? <span className="chip">Episode {featured.episodes_watched}</span> : null}
+                            {featured.score ? (
+                                <span className="chip text-amber-200">
+                                    <Star className="h-3 w-3 fill-amber-300 text-amber-300" /> You gave it {featured.score}
+                                </span>
+                            ) : null}
+                        </>
+                    )
+                }
+                description={!featured && 'Sync your MyAnimeList to see your shows here.'}
+                actions={
+                    <>
+                        {featured && (
+                            <Link to={`/anime/${featured.mal_id}`} className="btn-primary px-7 py-3">
+                                <Play className="h-4 w-4 fill-white" /> View details
+                            </Link>
+                        )}
+                        <button onClick={handleSync} disabled={syncing} className="btn-secondary px-7 py-3">
+                            <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+                            {syncing ? 'Syncing...' : 'Sync with MAL'}
                         </button>
-                        {syncMessage && <p className="text-sm text-yellow-200">{syncMessage}</p>}
-                    </div>
-                </div>
+                    </>
+                }
+            />
 
-                {/* Quick Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                    <div className="card">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm opacity-80 mb-1">Completed</p>
-                                <p className="text-3xl font-bold">{totalCompleted}</p>
-                            </div>
-                            <div className="icon">
-                                <Film size={24} />
-                            </div>
+            {/* Stat tiles, overlapping the bottom of the banner */}
+            <div className="relative z-10 -mt-6 mb-12 grid grid-cols-2 gap-4 px-4 sm:px-8 lg:grid-cols-4">
+                {tiles.map((t, i) => (
+                    <motion.div
+                        key={t.label}
+                        initial={{ opacity: 0, y: 24 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 + i * 0.08, duration: 0.5 }}
+                        whileHover={{ y: -4 }}
+                        className="card flex items-center justify-between p-5"
+                    >
+                        <div>
+                            <p className="text-xs uppercase tracking-widest text-purple-300/70">{t.label}</p>
+                            <p className="mt-1 text-3xl font-bold">
+                                {t.empty ? '–' : <CountUp value={t.value} decimals={t.decimals} />}
+                            </p>
                         </div>
-                    </div>
-
-                    <div className="card">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm opacity-80 mb-1">Time Watched</p>
-                                <p className="text-3xl font-bold">{totalDays}d</p>
-                            </div>
-                            <div className="icon">
-                                <Clock size={24} />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="card">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm opacity-80 mb-1">Avg Score</p>
-                                <p className="text-3xl font-bold">{avgScore}</p>
-                            </div>
-                            <div className="icon">
-                                <Star size={24} />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="card">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm opacity-80 mb-1">Watching</p>
-                                <p className="text-3xl font-bold">{watchingAll.length}</p>
-                            </div>
-                            <div className="icon">
-                                <Play size={24} />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Continue Watching Section */}
-                {watchingAnime.length > 0 && (
-                    <div className="card mb-8">
-                        <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-2xl font-bold flex items-center gap-2">
-                                <Play className="text-pink-400" size={28} />
-                                Continue Watching
-                            </h2>
-                            <Link to="/animelist" className="text-purple-400 hover:text-purple-300 flex items-center gap-1">
-                                View All
-                                <ArrowRight size={16} />
-                            </Link>
-                        </div>
-                        
-                        <div className="overflow-x-auto pb-4">
-                            <div className="flex gap-4" style={{ width: 'max-content' }}>
-                                {watchingAnime.map((anime) => (
-                                    <Link
-                                        key={anime.mal_id}
-                                        to={`/anime/${anime.mal_id}`}
-                                        className="flex-shrink-0 w-40 group"
-                                    >
-                                        <div className="relative overflow-hidden rounded-lg border-2 border-purple-500/30 group-hover:border-purple-500 transition-all">
-                                            <Poster
-                                                src={anime.image_url}
-                                                title={anime.title}
-                                                className="w-full h-56 object-cover group-hover:scale-110 transition-transform duration-300"
-                                            />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <div className="absolute bottom-2 left-2 right-2">
-                                                    <p className="text-xs text-purple-300">
-                                                        Ep {anime.episodes_watched}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <p className="mt-2 text-sm font-medium line-clamp-2 group-hover:text-purple-400 transition-colors">
-                                            {anime.title}
-                                        </p>
-                                    </Link>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Stats Preview & Quick Actions */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                    {/* Top Genres */}
-                    <div className="card">
-                        <div className="flex items-center gap-2 mb-4">
-                            <TrendingUp className="text-purple-400" size={24} />
-                            <h2 className="text-xl font-semibold">Your Top Genres</h2>
-                        </div>
-                        <div className="space-y-3">
-                            {topGenres.map((genre, idx) => (
-                                <div key={genre} className="flex items-center gap-3">
-                                    <div className="bg-gradient-to-r from-pink-500 to-purple-500 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">
-                                        {idx + 1}
-                                    </div>
-                                    <span className="text-lg">{genre}</span>
-                                </div>
-                            ))}
-                        </div>
-                        <Link
-                            to="/stats"
-                            className="btn-primary gap-2 mt-6 w-full"
-                        >
-                            <BarChart2 size={20} />
-                            View Full Stats
-                        </Link>
-                    </div>
-
-                    {/* Quick Links */}
-                    <div className="card">
-                        <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
-                        <div className="space-y-3">
-                            <Link
-                                to="/recommendations"
-                                className="btn-secondary w-full justify-start gap-3 text-left"
-                            >
-                                <TrendingUp size={20} />
-                                <div>
-                                    <p className="font-semibold">Get Recommendations</p>
-                                    <p className="text-sm opacity-70">AI-powered picks just for you</p>
-                                </div>
-                            </Link>
-
-                            <Link
-                                to="/animelist"
-                                className="btn-secondary w-full justify-start gap-3 text-left"
-                            >
-                                <Film size={20} />
-                                <div>
-                                    <p className="font-semibold">My Anime List</p>
-                                    <p className="text-sm opacity-70">View and manage your collection</p>
-                                </div>
-                            </Link>
-                            
-                            <Link
-                                to="/search"
-                                className="btn-secondary w-full justify-start gap-3 text-left"
-                            >
-                                <Search size={20} />
-                                <div>
-                                    <p className="font-semibold">Search Anime</p>
-                                    <p className="text-sm opacity-70">Discover new shows to watch</p>
-                                </div>
-                            </Link>
-
-                            <Link
-                                to="/profile"
-                                className="btn-secondary w-full justify-start gap-3 text-left"
-                            >
-                                <Star size={20} />
-                                <div>
-                                    <p className="font-semibold">My Profile</p>
-                                    <p className="text-sm opacity-70">View your MAL profile info</p>
-                                </div>
-                            </Link>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Recently Updated */}
-                {animeList.length > 0 && (
-                    <div className="card">
-                        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-                            <Clock className="text-blue-400" size={28} />
-                            Recently Updated
-                        </h2>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                            {byRecent
-                                .slice(0, 6)
-                                .map((anime) => (
-                                    <Link
-                                        key={anime.mal_id}
-                                        to={`/anime/${anime.mal_id}`}
-                                        className="group"
-                                    >
-                                        <div className="relative overflow-hidden rounded-lg border-2 border-purple-500/30 group-hover:border-purple-500 transition-all">
-                                            <Poster
-                                                src={anime.image_url}
-                                                title={anime.title}
-                                                className="w-full h-44 object-cover group-hover:scale-110 transition-transform duration-300"
-                                            />
-                                            {anime.score > 0 && (
-                                                <div className="absolute top-2 right-2 bg-gradient-to-r from-yellow-400 to-yellow-600 px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-                                                    <Star size={12} />
-                                                    {anime.score}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <p className="mt-2 text-sm font-medium line-clamp-2 group-hover:text-purple-400 transition-colors">
-                                            {anime.title}
-                                        </p>
-                                    </Link>
-                                ))}
-                        </div>
-                    </div>
-                )}
+                        <div className="icon h-11 w-11"><t.icon className="h-5 w-5" /></div>
+                    </motion.div>
+                ))}
             </div>
+            {syncMessage && <p className="-mt-8 mb-8 px-4 text-sm text-amber-200 sm:px-8">{syncMessage}</p>}
 
-            <Footer />
-        </div>
+            <Row
+                title="Continue watching"
+                icon={<Play className="h-5 w-5 text-pink-400" />}
+                action={<Link to="/animelist" className="flex items-center gap-1 text-sm text-pink-300 hover:text-pink-200">My list <ArrowRight className="h-4 w-4" /></Link>}
+            >
+                {watching.map((a) => (
+                    <PosterCard
+                        key={a.mal_id}
+                        to={`/anime/${a.mal_id}`}
+                        title={a.title}
+                        image={a.image_url}
+                        score={a.score}
+                        subtitle={a.episodes_watched ? `Episode ${a.episodes_watched}` : 'Not started'}
+                    />
+                ))}
+            </Row>
+
+            <Row title="Recently updated" icon={<Clock className="h-5 w-5 text-sky-400" />}>
+                {byRecent.slice(0, 20).map((a) => (
+                    <PosterCard
+                        key={a.mal_id}
+                        to={`/anime/${a.mal_id}`}
+                        title={a.title}
+                        image={a.image_url}
+                        score={a.score}
+                        subtitle={STATUS_LABELS[a.status] ?? a.status}
+                    />
+                ))}
+            </Row>
+
+            <Row
+                title="On your Plan to Watch"
+                icon={<ListChecks className="h-5 w-5 text-emerald-400" />}
+                action={<Link to="/recommendations" className="flex items-center gap-1 text-sm text-pink-300 hover:text-pink-200">Which first? <ArrowRight className="h-4 w-4" /></Link>}
+            >
+                {planToWatch.slice(0, 20).map((a) => (
+                    <PosterCard key={a.mal_id} to={`/anime/${a.mal_id}`} title={a.title} image={a.image_url} />
+                ))}
+            </Row>
+
+            <div className="grid gap-6 px-4 sm:px-8 lg:grid-cols-5">
+                {/* Top genres as animated bars */}
+                <Reveal className="lg:col-span-3">
+                    <div className="card h-full">
+                        <div className="mb-5 flex items-center justify-between">
+                            <h2 className="flex items-center gap-2 text-xl font-bold">
+                                <TrendingUp className="h-5 w-5 text-purple-400" /> Your top genres
+                            </h2>
+                            <Link to="/stats" className="flex items-center gap-1 text-sm text-pink-300 hover:text-pink-200">
+                                All stats <ArrowRight className="h-4 w-4" />
+                            </Link>
+                        </div>
+                        {topGenres.length === 0 ? (
+                            <p className="text-purple-300/70">Complete a few shows to see your genres.</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {topGenres.map(([genre, count], i) => (
+                                    <div key={genre}>
+                                        <div className="mb-1 flex justify-between text-sm">
+                                            <span>{genre}</span>
+                                            <span className="text-purple-300/70">{count}</span>
+                                        </div>
+                                        <div className="h-2 overflow-hidden rounded-full bg-white/5">
+                                            <motion.div
+                                                initial={{ width: 0 }}
+                                                whileInView={{ width: `${(count / topGenreMax) * 100}%` }}
+                                                viewport={{ once: true }}
+                                                transition={{ duration: 1, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] }}
+                                                className="h-full rounded-full bg-gradient-to-r from-pink-500 to-purple-500"
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </Reveal>
+
+                {/* Shortcuts */}
+                <div className="grid gap-4 lg:col-span-2">
+                    {[
+                        { to: '/recommendations', icon: Sparkles, title: 'Discover', text: 'Picks made for your taste, plus the AI chat' },
+                        { to: '/stats', icon: BarChart2, title: 'Your stats', text: 'Genres, studios, scores and watch time' },
+                        { to: '/animelist', icon: Film, title: 'My list', text: `${animeList.length} shows, filter and sort` },
+                    ].map((q, i) => (
+                        <Reveal key={q.to} delay={i * 0.08}>
+                            <Link to={q.to} className="card group flex items-center gap-4 p-5 transition hover:border-pink-400/40 hover:bg-white/[0.07]">
+                                <div className="icon h-11 w-11 transition group-hover:scale-110"><q.icon className="h-5 w-5" /></div>
+                                <div className="flex-1">
+                                    <p className="font-semibold">{q.title}</p>
+                                    <p className="text-sm text-purple-300/70">{q.text}</p>
+                                </div>
+                                <ArrowRight className="h-5 w-5 text-purple-300/50 transition group-hover:translate-x-1 group-hover:text-pink-300" />
+                            </Link>
+                        </Reveal>
+                    ))}
+                </div>
+            </div>
+        </AppShell>
     );
 };
 
