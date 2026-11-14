@@ -1,4 +1,7 @@
 @import "@fontsource-variable/space-grotesk";
+@import "@fontsource/silkscreen/400.css";
+@import "@fontsource/silkscreen/700.css";
+@import "@fontsource/dela-gothic-one/400.css";
 @import "tailwindcss";
 
 /*
@@ -7,6 +10,8 @@
  */
 @theme {
     --font-sans: "Space Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+    --font-pixel: "Silkscreen", ui-monospace, monospace;          /* logo, episode numbers, tickers */
+    --font-kanji: "Dela Gothic One", "Hiragino Sans", "Yu Gothic", sans-serif; /* kanji markers */
 
     --color-ink: #0b0614;          /* page background */
     --color-ink-soft: #140b22;     /* raised surfaces */
@@ -61,7 +66,69 @@
 
     /* Frosted panel used for most content blocks */
     .card {
-        @apply rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-md;
+        @apply relative isolate rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-md;
+    }
+
+    /*
+     * Cursor spotlight (utils/useSpotlight.ts sets --mx/--my on the hovered card):
+     * ::before is a soft pink glow under the pointer, ::after lights up the
+     * border near it (a gradient drawn only in the 1px border via a mask).
+     */
+    .card::before, .spotlight::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        border-radius: inherit;
+        opacity: 0;
+        transition: opacity 0.3s;
+        pointer-events: none;
+        background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgb(236 72 153 / 0.13), transparent 45%);
+    }
+    .card::after, .spotlight::after {
+        content: "";
+        position: absolute;
+        inset: -1px;
+        border-radius: inherit;
+        padding: 1px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        pointer-events: none;
+        background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgb(244 114 182 / 0.9), transparent 45%);
+        mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+    }
+    .card:hover::before, .card:hover::after, .spotlight:hover::before, .spotlight:hover::after {
+        opacity: 1;
+    }
+    .spotlight {
+        position: relative;
+        isolation: isolate;
+    }
+
+    /* Kanji markers: outlined, so they sit behind titles without competing */
+    .kanji-outline {
+        color: transparent;
+        -webkit-text-stroke: 1.5px rgb(244 114 182 / 0.32);
+    }
+
+    /* Holo card foil: a rainbow band that slides with the pointer */
+    .holo-foil {
+        mix-blend-mode: color-dodge;
+        opacity: 0.32;
+        background-image: linear-gradient(
+            115deg,
+            transparent 20%,
+            #ff77e9 32%,
+            #7dd3fc 42%,
+            #fde68a 50%,
+            #c084fc 58%,
+            transparent 72%
+        );
+        background-size: 250% 100%;
+        transition: opacity 0.3s;
+    }
+    .group:hover .holo-foil {
+        opacity: 0.55;
     }
 
     .icon {

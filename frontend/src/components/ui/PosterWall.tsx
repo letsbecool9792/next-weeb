@@ -1,17 +1,5 @@
-import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { API_URL } from '../../config';
-
-type Cover = { id: number; title: string; image: string };
-
-// One request per page load, shared by every PosterWall (landing, login, callback)
-let request: Promise<Cover[]> | null = null;
-const loadCovers = () => {
-    request ??= fetch(`${API_URL}/api/showcase/`)
-        .then((r) => (r.ok ? r.json() : []))
-        .catch(() => []);
-    return request;
-};
+import { useShowcase } from '../../utils/showcase';
 
 const ROWS = 4;
 
@@ -22,13 +10,7 @@ const ROWS = 4;
  * Shows gradient tiles while the (possibly sleeping) backend responds.
  */
 const PosterWall = ({ className = '' }: { className?: string }) => {
-    const [covers, setCovers] = useState<Cover[]>([]);
-
-    useEffect(() => {
-        let alive = true;
-        loadCovers().then((c) => alive && setCovers(c));
-        return () => { alive = false; };
-    }, []);
+    const covers = useShowcase();
 
     const perRow = Math.max(1, Math.ceil(covers.length / ROWS));
     const rows = Array.from({ length: ROWS }, (_, r) => covers.slice(r * perRow, (r + 1) * perRow));

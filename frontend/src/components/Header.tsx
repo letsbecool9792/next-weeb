@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
-import { Menu, X, User, Search, LogOut, Sparkles } from 'lucide-react';
+import { Menu, X, User, Search, LogOut } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 import SearchBox from './SearchBox';
+import Logo from './brand/Logo';
 
 const NAV_ITEMS = [
     { to: '/dashboard', label: 'Home' },
@@ -54,12 +55,7 @@ const Header = () => {
             }`}
         >
             <div className="flex h-16 items-center gap-4 px-4 sm:px-8">
-                <Link to="/dashboard" className="flex shrink-0 items-center gap-2">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-pink-500 to-purple-600 shadow-lg shadow-pink-500/30">
-                        <Sparkles className="h-4 w-4" />
-                    </span>
-                    <span className="text-lg font-bold tracking-tight text-gradient">NextWeeb</span>
-                </Link>
+                <Logo to="/dashboard" />
 
                 <nav className="ml-4 hidden items-center gap-1 md:flex">
                     {NAV_ITEMS.map((item) => (
