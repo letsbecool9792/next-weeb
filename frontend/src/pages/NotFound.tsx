@@ -2,6 +2,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { ArrowLeft, Home } from 'lucide-react';
 import PosterWall from '../components/ui/PosterWall';
+import Kanji from '../components/ui/Kanji';
+import Logo from '../components/brand/Logo';
 import { useAuth } from '../auth/useAuth';
 
 const NotFound = () => {
@@ -12,6 +14,9 @@ const NotFound = () => {
         <div className="page-bg relative flex items-center justify-center overflow-hidden px-4">
             <PosterWall className="opacity-15" />
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgb(11_6_20/0.7)_0%,rgb(11_6_20)_70%)]" />
+            <div className="absolute left-4 top-5 z-10 sm:left-8"><Logo /></div>
+            {/* 迷子: "lost" */}
+            <Kanji text="迷子" className="left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[16rem] sm:text-[24rem]" />
 
             <div className="relative z-10 max-w-xl text-center">
                 <motion.h1

@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { ArrowRight, Shield, Zap, BarChart2, List, Sparkles, AlertTriangle } from 'lucide-react';
+import { ArrowRight, Shield, Zap, BarChart2, List, AlertTriangle } from 'lucide-react';
 import { usePostHog } from 'posthog-js/react';
 import { useAuth } from '../../auth/useAuth';
 import { fetchOAuthConfig, startMalLogin, type OAuthConfig } from '../../utils/oauth';
 import PosterWall from '../../components/ui/PosterWall';
+import Kanji from '../../components/ui/Kanji';
+import Logo from '../../components/brand/Logo';
 
 const FEATURES = [
     { icon: Zap, title: 'Personalized picks', description: 'Recommendations that say why they were chosen' },
@@ -58,12 +60,9 @@ const GetStarted = () => {
             <PosterWall className="opacity-30" />
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgb(11_6_20/0.75)_0%,rgb(11_6_20/0.95)_65%)]" />
 
-            <Link to="/" className="absolute left-4 top-5 z-10 flex items-center gap-2 sm:left-8">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-pink-500 to-purple-600">
-                    <Sparkles className="h-4 w-4" />
-                </span>
-                <span className="text-lg font-bold text-gradient">NextWeeb</span>
-            </Link>
+            <div className="absolute left-4 top-5 z-10 sm:left-8"><Logo /></div>
+            {/* 入口: "entrance" */}
+            <Kanji text="入口" className="-right-10 bottom-0 text-[18rem] opacity-70 sm:text-[26rem]" />
 
             <motion.div
                 initial={{ opacity: 0, y: 30, scale: 0.97 }}
