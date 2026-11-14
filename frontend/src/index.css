@@ -1,74 +1,150 @@
+@import "@fontsource-variable/space-grotesk";
 @import "tailwindcss";
 
+/*
+ * Design tokens. The palette is the one the app always had (dark gray into
+ * fuchsia, purple and pink accents); these names just make it reusable.
+ */
+@theme {
+    --font-sans: "Space Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+
+    --color-ink: #0b0614;          /* page background */
+    --color-ink-soft: #140b22;     /* raised surfaces */
+
+    --animate-marquee: marquee 80s linear infinite;
+    --animate-marquee-reverse: marquee-reverse 80s linear infinite;
+    --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+    --animate-gradient: gradient-pan 6s ease infinite;
+    --animate-float: float 6s ease-in-out infinite;
+
+    @keyframes marquee {
+        from { transform: translateX(0); }
+        to { transform: translateX(-50%); }
+    }
+    @keyframes marquee-reverse {
+        from { transform: translateX(-50%); }
+        to { transform: translateX(0); }
+    }
+    @keyframes shimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+    }
+    @keyframes gradient-pan {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+    }
+    @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+}
+
+@layer base {
+    html {
+        background-color: var(--color-ink);
+        color-scheme: dark;
+    }
+    body {
+        @apply bg-ink text-white antialiased;
+        font-feature-settings: "ss01";
+    }
+    ::selection {
+        @apply bg-pink-500/40;
+    }
+}
+
 @layer components {
-    .card  {
-        @apply bg-purple-800/80 hover:bg-purple-800/30 backdrop-blur-sm border border-purple-500/80 rounded-xl p-6 transition-all;
+    /* Page background: the original gray-900 to fuchsia-950 wash */
+    .page-bg {
+        @apply min-h-screen bg-gradient-to-b from-ink via-gray-950 to-fuchsia-950/60 text-white;
+    }
+
+    /* Frosted panel used for most content blocks */
+    .card {
+        @apply rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-md;
     }
 
     .icon {
-        @apply bg-gradient-to-r from-pink-500 to-purple-500 w-12 h-12 rounded-full flex items-center justify-center
+        @apply bg-gradient-to-br from-pink-500 to-purple-600 w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shadow-pink-500/20;
     }
 
-    .number {
-        @apply absolute -top-4 -left-4 bg-gradient-to-r from-pink-500 to-purple-500 w-8 h-8 rounded-full flex items-center justify-center font-bold
+    .text-gradient {
+        @apply bg-gradient-to-r from-pink-400 via-fuchsia-400 to-purple-400 bg-clip-text text-transparent;
     }
 
-    .overlay-center {
-        @apply flex h-screen items-center justify-center;
-    }
-
-    .overlay-box {
-        @apply bg-purple-800/80 backdrop-blur-sm border border-purple-500/80 p-8 rounded-lg shadow-lg text-center text-white;
+    /* Animated version for headlines */
+    .text-gradient-animated {
+        @apply bg-gradient-to-r from-pink-400 via-purple-400 to-pink-400 bg-clip-text text-transparent animate-gradient;
+        background-size: 200% auto;
     }
 
     .btn-primary {
-        @apply bg-gradient-to-r from-pink-500 to-purple-500
-                hover:from-pink-600 hover:to-purple-600
-                text-white px-6 py-2 rounded-full flex items-center justify-center
-                shadow-lg shadow-purple-500/20 disabled:opacity-50;
+        @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 font-semibold text-white
+               bg-gradient-to-r from-pink-500 via-fuchsia-500 to-purple-500 animate-gradient
+               shadow-lg shadow-pink-500/25 transition-all duration-200
+               hover:shadow-pink-500/50 hover:brightness-110 active:scale-95
+               disabled:opacity-50 disabled:pointer-events-none;
+        background-size: 200% auto;
     }
 
     .btn-secondary {
-        @apply bg-purple-800/80 hover:bg-purple-700 border border-purple-500/50 
-                text-white px-6 py-2 rounded-full flex items-center justify-center 
+        @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 font-semibold text-white
+               border border-white/15 bg-white/5 backdrop-blur-md transition-all duration-200
+               hover:bg-white/15 hover:border-white/30 active:scale-95
+               disabled:opacity-50 disabled:pointer-events-none;
+    }
+
+    .chip {
+        @apply inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-medium text-purple-100 backdrop-blur;
+    }
+
+    .input {
+        @apply w-full rounded-full border border-white/10 bg-white/[0.06] px-5 py-2.5 text-white placeholder-purple-300/50
+               outline-none transition focus:border-pink-400/60 focus:bg-white/10 focus:ring-4 focus:ring-pink-500/15;
     }
 
     .select-field {
-        @apply bg-purple-900/80 border border-purple-500/50
-               text-white rounded-lg py-2 pl-3 pr-10 w-full
-                appearance-none focus:ring-2 focus:ring-pink-500 focus:border-transparent;
+        @apply rounded-full border border-white/10 bg-ink-soft px-4 py-2 text-sm text-white outline-none
+               focus:border-pink-400/60 focus:ring-4 focus:ring-pink-500/15;
     }
 
-    .markdown-content {
-        @apply text-white;
+    /* Loading placeholder with a moving sheen */
+    .skeleton {
+        @apply rounded-xl animate-shimmer;
+        background-image: linear-gradient(90deg, rgb(255 255 255 / 0.04) 0%, rgb(255 255 255 / 0.10) 50%, rgb(255 255 255 / 0.04) 100%);
+        background-size: 200% 100%;
     }
 
-    .markdown-content p {
-        @apply my-2;
+    .overlay-center {
+        @apply flex min-h-screen items-center justify-center px-4;
     }
 
-    .markdown-content ul, .markdown-content ol {
-        @apply ml-4 my-2;
+    .overlay-box {
+        @apply card text-center;
     }
 
-    .markdown-content li {
-        @apply my-1;
-    }
+    /* Markdown in AI chat replies */
+    .markdown-content p { @apply my-1.5; }
+    .markdown-content ul, .markdown-content ol { @apply ml-4 my-2 list-disc; }
+    .markdown-content li { @apply my-1; }
+    .markdown-content strong { @apply font-bold text-pink-300; }
+    .markdown-content em { @apply italic text-purple-300; }
+    .markdown-content code { @apply bg-purple-900/50 px-1 rounded text-pink-300; }
+}
 
-    .markdown-content strong {
-        @apply font-bold text-pink-300;
-    }
+@layer utilities {
+    /* Horizontal rows scroll without a visible scrollbar */
+    .no-scrollbar { scrollbar-width: none; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
 
-    .markdown-content em {
-        @apply italic text-purple-300;
+    .mask-fade-x {
+        mask-image: linear-gradient(to right, transparent, black 4%, black 96%, transparent);
     }
+}
 
-    .markdown-content code {
-        @apply bg-purple-900/50 px-1 rounded text-pink-300;
+/* Respect the system "reduce motion" setting for the CSS animations too */
+@media (prefers-reduced-motion: reduce) {
+    .animate-marquee, .animate-marquee-reverse, .animate-gradient, .animate-float {
+        animation: none !important;
     }
-
-    .markdown-content h1, .markdown-content h2, .markdown-content h3 {
-        @apply font-bold text-pink-400 mt-3 mb-2;
-    }
-
 }
