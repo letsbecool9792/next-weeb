@@ -42,8 +42,9 @@ else:
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ['SECRET_KEY']
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+# Debug mode shows full error pages with settings and source code, so it is
+# off unless an environment explicitly asks for it (.env.development does).
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
@@ -58,12 +59,6 @@ MAL_CLIENT_ID = os.environ['MAL_CLIENT_ID']
 MAL_CLIENT_SECRET = os.environ['MAL_CLIENT_SECRET']
 MAL_REDIRECT_URI = os.environ['MAL_REDIRECT_URI']
 
-
-
-# Use signed cookie sessions (works across multiple instances, no DB needed)
-SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
-SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_NAME = 'nw_sessionid'  # Changed from default to invalidate old sessions
 
 # Application definition
 
@@ -94,31 +89,30 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-SESSION_COOKIE_SAMESITE = 'Lax' if DEBUG else 'None'  # Lax for localhost, None for production cross-origin
-SESSION_COOKIE_SECURE = not DEBUG  # False for local HTTP, True for production HTTPS
-SESSION_COOKIE_DOMAIN = None  # Don't set domain, let browser handle it
-CSRF_COOKIE_SAMESITE = 'Lax' if DEBUG else 'None'  # Lax for local HTTP, None for production HTTPS
-CSRF_COOKIE_SECURE = not DEBUG  # Only require HTTPS in production
-CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to read CSRF token
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:5173",  # Local development
-    "http://localhost:3000",
-    "https://next-weeb.vercel.app",
-    "https://next-weeb.onrender.com",
-]
+# The API authenticates with a JWT in the Authorization header, never with
+# cookies. Sessions and CSRF stay on Django's defaults and only serve /admin/.
 
+# Which browser origins may call this API. Cookies are not allowed across
+# origins (no CORS_ALLOW_CREDENTIALS), because nothing here needs them.
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # Allow React frontend to make requests
-    "http://localhost:5173",
+    "http://localhost:5173",  # Vite dev server
     "https://next-weeb.vercel.app",  # Production frontend
 ]
 
-# Add environment-based origins for production
 FRONTEND_URL = os.environ.get('FRONTEND_URL', '')
 if FRONTEND_URL and FRONTEND_URL not in CORS_ALLOWED_ORIGINS:
     CORS_ALLOWED_ORIGINS.append(FRONTEND_URL)
 
-CORS_ALLOW_CREDENTIALS = True
+# Production-only hardening. Skipped locally because the dev server is plain HTTP.
+if not DEBUG:
+    # Render terminates HTTPS and forwards plain HTTP with this header set,
+    # so this is how Django learns the original request was secure.
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    # Tell browsers to refuse plain HTTP for this host for the next year.
+    SECURE_HSTS_SECONDS = 31536000
+    # Admin cookies only travel over HTTPS.
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 ROOT_URLCONF = 'backend.urls'
 
@@ -218,7 +212,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Django REST Framework settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'api.authentication.LoggingJWTAuthentication',  # Custom JWT auth with logging
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
