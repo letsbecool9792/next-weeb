@@ -119,5 +119,15 @@ export const authFetch = async (url: string, options: RequestInit = {}): Promise
         }
     }
 
+    // 403 with this code means our login is fine but the backend can no longer
+    // reach MyAnimeList for this user. Only a fresh MAL login can fix that.
+    if (response.status === 403) {
+        const body = await response.clone().json().catch(() => null);
+        if (body?.code === 'mal_reauth_required') {
+            clearAuth();
+            window.location.href = '/get-started?reason=mal_expired';
+        }
+    }
+
     return response;
 };

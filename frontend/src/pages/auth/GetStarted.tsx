@@ -12,6 +12,9 @@ const GetStarted = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLog
     const configRequest = useRef<Promise<OAuthConfig | null> | null>(null);
     const posthog = usePostHog();
 
+    // Set when the app sent the user here because their MyAnimeList connection ran out
+    const malExpired = new URLSearchParams(window.location.search).get('reason') === 'mal_expired';
+
     useEffect(() => {
         // Ask for the login configuration as soon as the page opens. The backend
         // sleeps when idle, so this also wakes it up while the user is still reading.
@@ -118,6 +121,12 @@ const GetStarted = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLog
             </p>
         </div>
         
+        {malExpired && (
+            <div className="bg-yellow-500/10 border border-yellow-400/40 text-yellow-100 rounded-xl p-4 mb-6 text-center">
+                Your MyAnimeList connection expired. Log in again to reconnect it.
+            </div>
+        )}
+
         <div className="bg-purple-800 bg-opacity-20 backdrop-blur-sm border border-purple-500 border-opacity-30 rounded-xl p-8 mb-12">
             <div className="flex flex-col items-center">
             <div className="mb-6">
