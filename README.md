@@ -4,6 +4,8 @@ Anime recommendations, stats and an AI assistant built on your MyAnimeList accou
 
 **Live:** [next-weeb.vercel.app](https://next-weeb.vercel.app) (the backend sleeps when idle, so the first request can take about a minute)
 
+![The NextWeeb landing page: anime covers drifting inside a giant 次 next to the headline "Your next favourite anime is already waiting."](docs/screenshots/landing.webp)
+
 Log in with MyAnimeList (MAL) and NextWeeb copies your list, then gives you:
 
 - **Recommendations that explain themselves.** Every pick says why it was chosen: "Recommended by 31 fans of Sousou no Frieren", "From Madhouse, who made Sousou no Frieren", "Matches your taste for Drama and Adventure".
@@ -11,6 +13,22 @@ Log in with MyAnimeList (MAL) and NextWeeb copies your list, then gives you:
 - **Plan to Watch, ranked.** Which show already on your list fits your taste best.
 - **Stats.** Top genres and studios, rating spread, media types, total watch time.
 - **Your list, search and detail pages,** fast because they read a synced copy rather than calling MAL each time.
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/home.webp" alt="Home: a banner for the show you're watching, stat tiles and a ticker of your genres"><br><b>Home.</b> What you're watching, your numbers, your rows.</td>
+    <td width="50%"><img src="docs/screenshots/discover.webp" alt="Discover: rows of recommendations, each numbered like an episode"><br><b>Discover.</b> Recommendations, each with the reason it was picked.</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/chat.webp" alt="The AI assistant suggesting K-On! to someone who liked Bocchi the Rock, as a clickable card"><br><b>AI chat.</b> Knows your list; only suggests shows you haven't seen.</td>
+    <td width="50%"><img src="docs/screenshots/detail.webp" alt="K-On!'s page: a holo card, its Japanese title in outline, and a score ring"><br><b>Anime pages.</b> Score, your progress, related shows, what fans also like.</td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/stats.webp" alt="Stats: count-up tiles, a ticker of your numbers, and charts of genres and studios"><br><b>Stats.</b> Genres, studios, how you rate, watch time.</td>
+  </tr>
+</table>
 
 ## Tech stack
 
@@ -74,6 +92,7 @@ frontend/
     pages/              one component per page
     components/
     utils/              fetch wrapper with token refresh, OAuth helpers
+docs/screenshots/       images used in this README
 initial stages/         the project's 2024 origin: CLI scripts against the Jikan API
 ```
 
