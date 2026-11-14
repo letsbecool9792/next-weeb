@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Sparkles, TrendingUp, Star, Building2, Gem, MessageCircle, RefreshCw, ListChecks, Heart, Play } from 'lucide-react';
+import { Sparkles, Star, Gem, MessageCircle, RefreshCw, Heart, Play } from 'lucide-react';
 import { usePostHog } from 'posthog-js/react';
 import ChatPanel from '../components/ChatPanel';
 import ErrorState from '../components/ErrorState';
 import HeroBanner from '../components/ui/HeroBanner';
 import Row from '../components/ui/Row';
 import PosterCard from '../components/ui/PosterCard';
+import Ticker from '../components/ui/Ticker';
 import { HeroSkeleton, RowSkeleton } from '../components/ui/Skeleton';
 import { API_URL } from '../config';
 import { authFetch } from '../utils/fetch';
@@ -114,6 +115,9 @@ const Recommendations = () => {
                 <>
                     <HeroBanner
                         key={`hero-${generation}`}
+                        kanji="発見"
+                        posterCode="NW·#1"
+                        posterBadge={hero?.score ? <span className="rounded-full bg-black/55 px-2 py-0.5 font-pixel text-[10px] text-amber-200">★ {hero.score.toFixed(1)}</span> : undefined}
                         image={hero?.image_large ?? hero?.image}
                         poster={hero?.image ?? null}
                         eyebrow="Your top pick"
@@ -144,68 +148,52 @@ const Recommendations = () => {
                         }
                     />
 
-                    {/* What the recommendations are based on */}
+                    {/* What the recommendations are based on, as a ticker */}
                     {recs.taste.top_genres.length > 0 && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 16 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.4 }}
-                            className="relative z-10 -mt-4 mb-10 px-4 sm:px-8"
-                        >
-                            <div className="card flex flex-col gap-3 p-5 md:flex-row md:items-center md:gap-6">
-                                <p className="flex shrink-0 items-center gap-2 text-sm font-semibold">
-                                    <Heart className="h-4 w-4 text-pink-400" /> What we think you like
+                        <div className="mb-6">
+                            <Ticker items={[...recs.taste.top_genres, ...recs.taste.top_studios]} tilt={-1.5} />
+                            {recs.taste.favourites.length > 0 && (
+                                <p className="mt-5 flex items-center gap-2 px-4 text-sm text-purple-300/70 sm:px-8">
+                                    <Heart className="h-4 w-4 text-pink-400" /> Built mostly from {recs.taste.favourites.slice(0, 3).join(', ')}
                                 </p>
-                                <div className="flex flex-wrap gap-2">
-                                    {recs.taste.top_genres.map((g, i) => (
-                                        <motion.span key={g} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.5 + i * 0.05 }} className="chip border-pink-400/30 bg-pink-500/15">{g}</motion.span>
-                                    ))}
-                                    {recs.taste.top_studios.map((s) => (
-                                        <span key={s} className="chip border-sky-400/30 bg-sky-500/15">{s}</span>
-                                    ))}
-                                </div>
-                                {recs.taste.favourites.length > 0 && (
-                                    <p className="text-xs text-purple-300/70 md:ml-auto md:text-right">
-                                        Built mostly from {recs.taste.favourites.slice(0, 3).join(', ')}
-                                    </p>
-                                )}
-                            </div>
-                        </motion.div>
+                            )}
+                        </div>
                     )}
 
                     <div key={`rows-${generation}`}>
-                        <Row title="Top picks for you" icon={<Sparkles className="h-5 w-5 text-amber-300" />} subtitle="The best matches across everything we considered">
+                        <Row ep={1} label="Discover" title="Top picks for you" subtitle="The best matches across everything we considered">
                             {cards(recs.top_picks.slice(1))}
                         </Row>
 
                         {recs.because_you_liked.map((section) => (
                             <Row
                                 key={section.anchor_id}
+                                ep={2}
+                                label="Discover"
                                 title={<>Because you liked <span className="text-gradient">{section.anchor}</span></>}
-                                icon={<TrendingUp className="h-5 w-5 text-pink-400" />}
                                 subtitle="What MyAnimeList users who loved it recommend"
                             >
                                 {cards(section.anime)}
                             </Row>
                         ))}
 
-                        <Row title="Start next from your Plan to Watch" icon={<ListChecks className="h-5 w-5 text-emerald-400" />} subtitle="Your own list, ordered by how well each show fits your taste">
+                        <Row ep={3} label="Discover" title="Start next from your Plan to Watch" subtitle="Your own list, ordered by how well each show fits your taste">
                             {cards(recs.plan_to_watch)}
                         </Row>
 
                         {recs.from_genres && (
-                            <Row title={<>Your kind of <span className="text-gradient">{recs.from_genres.genre}</span></>} icon={<Star className="h-5 w-5 text-purple-400" />}>
+                            <Row ep={4} label="Discover" title={<>Your kind of <span className="text-gradient">{recs.from_genres.genre}</span></>}>
                                 {cards(recs.from_genres.anime)}
                             </Row>
                         )}
 
                         {recs.from_studios && (
-                            <Row title={<>More from <span className="text-sky-300">{recs.from_studios.studio}</span></>} icon={<Building2 className="h-5 w-5 text-sky-400" />}>
+                            <Row ep={5} label="Discover" title={<>More from <span className="text-sky-300">{recs.from_studios.studio}</span></>}>
                                 {cards(recs.from_studios.anime)}
                             </Row>
                         )}
 
-                        <Row title="Hidden gems" icon={<Gem className="h-5 w-5 text-emerald-400" />} subtitle="Highly rated, but outside the 1,500 most popular shows">
+                        <Row ep={6} label="Discover" title="Hidden gems" subtitle="Highly rated, but outside the 1,500 most popular shows">
                             {cards(recs.hidden_gems, (
                                 <span className="flex items-center gap-1 rounded-full bg-emerald-500/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
                                     <Gem className="h-3 w-3" /> Gem

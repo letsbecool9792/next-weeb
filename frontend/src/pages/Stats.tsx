@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Award, BarChart2, Building2, Clock, Film, PieChart as PieIcon, Star, TrendingUp } from 'lucide-react';
+import { Award, Clock, Film, Star } from 'lucide-react';
 import { motion } from 'motion/react';
 import ErrorState from '../components/ErrorState';
 import PageHeader from '../components/ui/PageHeader';
 import Row from '../components/ui/Row';
-import PosterCard from '../components/ui/PosterCard';
+import Ticker from '../components/ui/Ticker';
+import TitleCard from '../components/ui/TitleCard';
+import HoloCard from '../components/ui/HoloCard';
 import CountUp from '../components/ui/CountUp';
 import Reveal from '../components/ui/Reveal';
 import { API_URL } from '../config';
@@ -28,10 +30,10 @@ const countBy = (values: string[]) => {
     return [...map.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
 };
 
-const ChartCard = ({ icon, title, children, delay = 0 }: { icon: React.ReactNode; title: string; children: React.ReactNode; delay?: number }) => (
+const ChartCard = ({ ep, title, children, delay = 0 }: { ep: number; title: string; children: React.ReactNode; delay?: number }) => (
     <Reveal delay={delay}>
         <div className="card h-full">
-            <h2 className="mb-5 flex items-center gap-2 text-xl font-bold">{icon}{title}</h2>
+            <div className="mb-5"><TitleCard ep={ep} label="Stats" title={title} /></div>
             {children}
         </div>
     </Reveal>
@@ -63,6 +65,7 @@ const Stats = () => {
     const header = (
         <PageHeader
             eyebrow="Stats"
+            kanji="統計"
             title={<>Your anime, <span className="text-gradient">by the numbers</span></>}
             subtitle={loading ? 'Crunching your stats...' : `Across the ${animeList.length} shows you've completed`}
         />
@@ -143,8 +146,16 @@ const Stats = () => {
                 ))}
             </div>
 
+            <div className="mb-12">
+                <Ticker
+                    items={[`${animeList.length} completed`, `${Math.round(totalMinutes / 60)} hours`, ...(average !== null ? [`average ${average.toFixed(2)}`] : []), `${perfectTens.length} perfect 10s`, ...genreData.slice(0, 4).map((g) => g.name)]}
+                    tilt={1.5}
+                    reverse
+                />
+            </div>
+
             <div className="mb-12 grid gap-6 px-4 sm:px-8 lg:grid-cols-2">
-                <ChartCard icon={<TrendingUp className="h-5 w-5 text-pink-400" />} title="Top genres">
+                <ChartCard ep={1} title="Top genres">
                     <ResponsiveContainer width="100%" height={340}>
                         <BarChart data={genreData} layout="vertical" margin={{ left: 10, right: 20 }}>
                             <defs>
@@ -161,7 +172,7 @@ const Stats = () => {
                     </ResponsiveContainer>
                 </ChartCard>
 
-                <ChartCard icon={<Building2 className="h-5 w-5 text-sky-400" />} title="Top studios" delay={0.1}>
+                <ChartCard ep={2} title="Top studios" delay={0.1}>
                     <ResponsiveContainer width="100%" height={340}>
                         <BarChart data={studioData} layout="vertical" margin={{ left: 10, right: 20 }}>
                             <defs>
@@ -178,7 +189,7 @@ const Stats = () => {
                     </ResponsiveContainer>
                 </ChartCard>
 
-                <ChartCard icon={<BarChart2 className="h-5 w-5 text-amber-300" />} title="How you rate">
+                <ChartCard ep={3} title="How you rate">
                     <ResponsiveContainer width="100%" height={300}>
                         <BarChart data={scoreData}>
                             <defs>
@@ -196,7 +207,7 @@ const Stats = () => {
                     </ResponsiveContainer>
                 </ChartCard>
 
-                <ChartCard icon={<PieIcon className="h-5 w-5 text-purple-400" />} title="Formats" delay={0.1}>
+                <ChartCard ep={4} title="Formats" delay={0.1}>
                     <div className="flex flex-col items-center gap-6 sm:flex-row">
                         <ResponsiveContainer width="100%" height={260}>
                             <PieChart>
@@ -221,9 +232,17 @@ const Stats = () => {
                 </ChartCard>
             </div>
 
-            <Row title="Your perfect 10s" icon={<Award className="h-5 w-5 text-amber-300" />} subtitle="Every show you gave a 10">
-                {perfectTens.map((a) => (
-                    <PosterCard key={a.mal_id} to={`/anime/${a.mal_id}`} title={a.title} image={a.image} score={10} />
+            <Row ep={5} label="Stats" title="Your perfect 10s" subtitle="Every show you gave a 10, as a card worth keeping" itemClassName="w-44 sm:w-52">
+                {perfectTens.map((a, i) => (
+                    <HoloCard
+                        key={a.mal_id}
+                        to={`/anime/${a.mal_id}`}
+                        title={a.title}
+                        image={a.image}
+                        code={`NW·${String(i + 1).padStart(3, '0')}`}
+                        badge={<span className="rounded-full bg-black/55 px-2 py-0.5 font-pixel text-[10px] text-amber-200">★ 10</span>}
+                        className="w-full"
+                    />
                 ))}
             </Row>
         </>

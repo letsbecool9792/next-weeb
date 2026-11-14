@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { ArrowLeft, ExternalLink, Users, Trophy, TrendingUp, Heart, Link2 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Users, Trophy, TrendingUp, Heart } from 'lucide-react';
 import { usePostHog } from 'posthog-js/react';
 import ErrorState from '../components/ErrorState';
 import HeroBanner from '../components/ui/HeroBanner';
@@ -150,6 +150,10 @@ const AnimeDetail = () => {
         <>
             <HeroBanner
                 key={detail.id}
+                // The show's own Japanese title as its kanji marker
+                kanji={detail.alternative_titles?.ja ? [...detail.alternative_titles.ja].slice(0, 4).join('') : undefined}
+                posterCode={detail.rank ? `RANK #${detail.rank}` : 'NW'}
+                posterBadge={detail.mean ? <span className="rounded-full bg-black/55 px-2 py-0.5 font-pixel text-[10px] text-amber-200">★ {detail.mean.toFixed(2)}</span> : undefined}
                 image={detail.main_picture?.large ?? detail.main_picture?.medium}
                 poster={detail.main_picture?.large ?? detail.main_picture?.medium ?? null}
                 eyebrow={detail.alternative_titles?.en && detail.alternative_titles.en !== detail.title ? detail.alternative_titles.en : detail.alternative_titles?.ja}
@@ -303,7 +307,7 @@ const AnimeDetail = () => {
             </div>
 
             <div className="mt-12">
-                <Row title="Related" icon={<Link2 className="h-5 w-5 text-sky-400" />} subtitle="Sequels, prequels and side stories">
+                <Row ep={1} label="Related" title="Related" subtitle="Sequels, prequels and side stories">
                     {(detail.related_anime ?? []).map((r) => (
                         <PosterCard
                             key={r.node.id}
@@ -314,7 +318,7 @@ const AnimeDetail = () => {
                         />
                     ))}
                 </Row>
-                <Row title="Fans also like" icon={<Heart className="h-5 w-5 text-pink-400" />} subtitle="Recommended by MyAnimeList members who loved this">
+                <Row ep={2} label="Fans" title="Fans also like" subtitle="Recommended by MyAnimeList members who loved this">
                     {(detail.recommendations ?? []).map((r) => (
                         <PosterCard
                             key={r.node.id}

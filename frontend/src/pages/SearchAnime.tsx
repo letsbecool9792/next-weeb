@@ -94,6 +94,7 @@ const SearchAnime = () => {
         <>
             <PageHeader
                 eyebrow="Search"
+                kanji="探索"
                 title={<>Discover <span className="text-gradient">any anime</span></>}
                 subtitle="Search all of MyAnimeList. Tip: press / anywhere to jump to the search box."
             />

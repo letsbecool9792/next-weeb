@@ -1,5 +1,6 @@
 import { motion, useScroll, useTransform } from 'motion/react';
-import Poster from '../Poster';
+import HoloCard from './HoloCard';
+import Kanji from './Kanji';
 
 const stagger = {
     hidden: {},
@@ -15,9 +16,12 @@ const rise = {
  * drifting slower than the page as you scroll (parallax), fading into the
  * background, with the poster and text animating in.
  */
-const HeroBanner = ({ image, poster, eyebrow, title, meta, description, actions, compact = false }: {
+const HeroBanner = ({ image, poster, posterCode, posterBadge, kanji, eyebrow, title, meta, description, actions, compact = false }: {
     image?: string | null;      // background art (the large cover works well)
-    poster?: string | null;     // shown as a card on the left, from md screens up
+    poster?: string | null;     // shown as a holo card on the left, from md screens up
+    posterCode?: string;        // small label on the holo card
+    posterBadge?: React.ReactNode;
+    kanji?: string;             // the page's word in Japanese, huge in outline on the right
     eyebrow?: React.ReactNode;  // small line above the title
     title: React.ReactNode;
     meta?: React.ReactNode;     // chips under the title
@@ -51,15 +55,19 @@ const HeroBanner = ({ image, poster, eyebrow, title, meta, description, actions,
             <div className="absolute inset-0 bg-gradient-to-r from-ink via-ink/50 to-transparent" />
             <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-ink/80 to-transparent" />
             <div className="pointer-events-none absolute -left-32 bottom-0 h-96 w-96 rounded-full bg-pink-600/20 blur-3xl" />
+            {kanji && <Kanji text={kanji} className="bottom-6 right-4 hidden text-[10rem] opacity-80 sm:block lg:right-10 lg:text-[15rem]" />}
 
             <motion.div style={{ opacity: fade }} className="relative flex h-full items-end px-4 pb-14 pt-24 sm:px-8">
                 <motion.div variants={stagger} initial="hidden" animate="show" className="flex w-full items-end gap-8">
                     {poster !== undefined && (
-                        <motion.div
-                            variants={rise}
-                            className="hidden w-44 shrink-0 overflow-hidden rounded-2xl shadow-2xl shadow-black/60 ring-1 ring-white/15 md:block lg:w-52"
-                        >
-                            <Poster src={poster} title={typeof title === 'string' ? title : ''} className="aspect-[2/3] w-full object-cover" />
+                        <motion.div variants={rise} className="hidden shrink-0 md:block">
+                            <HoloCard
+                                image={poster}
+                                title={typeof title === 'string' ? title : ''}
+                                code={posterCode}
+                                badge={posterBadge}
+                                className="w-44 lg:w-52"
+                            />
                         </motion.div>
                     )}
                     <div className="max-w-2xl">

@@ -104,6 +104,7 @@ const AnimeList = () => {
         <>
             <PageHeader
                 eyebrow="My list"
+                kanji="一覧"
                 title={<>Your anime <span className="text-gradient">collection</span></>}
                 subtitle={loading ? 'Loading...' : `${animeList.length} titles, synced from MyAnimeList`}
                 actions={

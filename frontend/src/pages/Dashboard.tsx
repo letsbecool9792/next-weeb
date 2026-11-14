@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { RefreshCw, TrendingUp, BarChart2, Clock, Film, Star, ArrowRight, Play, Sparkles, ListChecks } from 'lucide-react';
+import { RefreshCw, BarChart2, Clock, Film, Star, ArrowRight, Play, Sparkles } from 'lucide-react';
 import ErrorState from '../components/ErrorState';
 import HeroBanner from '../components/ui/HeroBanner';
 import Row from '../components/ui/Row';
 import PosterCard from '../components/ui/PosterCard';
+import Ticker from '../components/ui/Ticker';
 import CountUp from '../components/ui/CountUp';
 import Reveal from '../components/ui/Reveal';
+import TitleCard from '../components/ui/TitleCard';
 import { HeroSkeleton, RowSkeleton } from '../components/ui/Skeleton';
 import { API_URL } from '../config';
 import { authFetch } from '../utils/fetch';
@@ -119,6 +121,8 @@ const Dashboard = () => {
     return (
         <>
             <HeroBanner
+                kanji="おかえり"
+                posterCode="NW·NOW"
                 image={featured?.image_large ?? featured?.image_url}
                 poster={featured?.image_url ?? null}
                 eyebrow={
@@ -179,9 +183,24 @@ const Dashboard = () => {
             </div>
             {syncMessage && <p className="-mt-8 mb-8 px-4 text-sm text-amber-200 sm:px-8">{syncMessage}</p>}
 
+            {/* Your own numbers and genres, broadcast-style */}
+            <div className="mb-14">
+                <Ticker
+                    items={[
+                        `${statsData.length} completed`,
+                        `${(totalMinutes / 60 / 24).toFixed(1)} days watched`,
+                        ...(average !== null ? [`average ${average.toFixed(1)}`] : []),
+                        `${watching.length} watching`,
+                        ...topGenres.map(([g]) => g),
+                    ]}
+                    tilt={-1.5}
+                />
+            </div>
+
             <Row
+                ep={1}
+                label="Home"
                 title="Continue watching"
-                icon={<Play className="h-5 w-5 text-pink-400" />}
                 action={<Link to="/animelist" className="flex items-center gap-1 text-sm text-pink-300 hover:text-pink-200">My list <ArrowRight className="h-4 w-4" /></Link>}
             >
                 {watching.map((a) => (
@@ -196,7 +215,7 @@ const Dashboard = () => {
                 ))}
             </Row>
 
-            <Row title="Recently updated" icon={<Clock className="h-5 w-5 text-sky-400" />}>
+            <Row ep={2} label="Home" title="Recently updated">
                 {byRecent.slice(0, 20).map((a) => (
                     <PosterCard
                         key={a.mal_id}
@@ -210,8 +229,9 @@ const Dashboard = () => {
             </Row>
 
             <Row
+                ep={3}
+                label="Home"
                 title="On your Plan to Watch"
-                icon={<ListChecks className="h-5 w-5 text-emerald-400" />}
                 action={<Link to="/recommendations" className="flex items-center gap-1 text-sm text-pink-300 hover:text-pink-200">Which first? <ArrowRight className="h-4 w-4" /></Link>}
             >
                 {planToWatch.slice(0, 20).map((a) => (
@@ -224,9 +244,7 @@ const Dashboard = () => {
                 <Reveal className="lg:col-span-3">
                     <div className="card h-full">
                         <div className="mb-5 flex items-center justify-between">
-                            <h2 className="flex items-center gap-2 text-xl font-bold">
-                                <TrendingUp className="h-5 w-5 text-purple-400" /> Your top genres
-                            </h2>
+                            <TitleCard ep={4} label="Home" title="Your top genres" />
                             <Link to="/stats" className="flex items-center gap-1 text-sm text-pink-300 hover:text-pink-200">
                                 All stats <ArrowRight className="h-4 w-4" />
                             </Link>

@@ -1,6 +1,7 @@
 import { Children, useRef } from 'react';
 import { motion } from 'motion/react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import TitleCard from './TitleCard';
 
 const container = {
     hidden: {},
@@ -16,8 +17,10 @@ const item = {
  * Cards stagger in when the row scrolls into view; arrow buttons appear on
  * hover (desktop), and the row can be swiped or shift-scrolled.
  */
-const Row = ({ title, icon, subtitle, action, children, itemClassName = 'w-36 sm:w-44' }: {
+const Row = ({ title, icon, subtitle, action, ep, label, children, itemClassName = 'w-36 sm:w-44' }: {
     title: React.ReactNode;
+    ep?: number;        // when set, the title is an episode title card with this number
+    label?: string;     // text in the episode band, usually the page name
     icon?: React.ReactNode;
     subtitle?: string;
     action?: React.ReactNode;
@@ -38,13 +41,17 @@ const Row = ({ title, icon, subtitle, action, children, itemClassName = 'w-36 sm
     return (
         <section className="group/row relative mb-10">
             <div className="mb-3 flex items-end justify-between gap-4 px-4 sm:px-8">
-                <div>
-                    <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight sm:text-2xl">
-                        {icon}
-                        {title}
-                    </h2>
-                    {subtitle && <p className="mt-1 text-sm text-purple-300/70">{subtitle}</p>}
-                </div>
+                {ep ? (
+                    <TitleCard ep={ep} label={label} title={title} subtitle={subtitle} />
+                ) : (
+                    <div>
+                        <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight sm:text-2xl">
+                            {icon}
+                            {title}
+                        </h2>
+                        {subtitle && <p className="mt-1 text-sm text-purple-300/70">{subtitle}</p>}
+                    </div>
+                )}
                 {action}
             </div>
 

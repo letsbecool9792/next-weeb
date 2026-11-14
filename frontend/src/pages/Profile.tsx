@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { RefreshCw, Calendar, MapPin, Clock, ExternalLink } from 'lucide-react';
 import ErrorState from '../components/ErrorState';
 import Reveal from '../components/ui/Reveal';
+import Kanji from '../components/ui/Kanji';
 import { API_URL } from '../config';
 import { authFetch } from '../utils/fetch';
 import { formatDate, LOAD_ERROR } from '../utils/format';
@@ -78,6 +79,7 @@ const Profile = () => {
                     <div className="h-full w-full bg-gradient-to-br from-pink-600/50 via-purple-800/60 to-ink" />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/40 to-transparent" />
+                <Kanji text="私" className="right-6 top-16 text-[12rem] sm:right-16 sm:text-[16rem]" />
             </section>
 
             <div className="relative z-10 mx-auto -mt-32 max-w-4xl px-4 sm:px-8">
