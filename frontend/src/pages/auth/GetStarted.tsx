@@ -1,13 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ArrowRight, Shield, Zap, BarChart2, List } from 'lucide-react';
 import { usePostHog } from 'posthog-js/react';
-import { API_URL } from '../../config';
 import { isAuthenticated } from '../../utils/auth';
+import { fetchOAuthConfig, startMalLogin, type OAuthConfig } from '../../utils/oauth';
 
 const GetStarted = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>>}) => {
     //const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [isStartingLogin, setIsStartingLogin] = useState(false);
+    const [loginError, setLoginError] = useState('');
+    const configRequest = useRef<Promise<OAuthConfig | null> | null>(null);
     const posthog = usePostHog();
+
+    useEffect(() => {
+        // Ask for the login configuration as soon as the page opens. The backend
+        // sleeps when idle, so this also wakes it up while the user is still reading.
+        // A failure here is kept as null and retried when the button is clicked.
+        configRequest.current = fetchOAuthConfig().catch(() => null);
+    }, []);
 
     useEffect(() => {
         // Check if user is authenticated via JWT token in localStorage
@@ -27,12 +37,21 @@ const GetStarted = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLog
     }, [setIsLoggedIn, posthog]);
       
 
-    const handleMALLogin = () => {
+    const handleMALLogin = async () => {
         // Track MAL login button click
         posthog?.capture('mal_login_clicked');
-        
-        // Redirect to your Django backend's MAL OAuth endpoint
-        window.location.href = `${API_URL}/api/login/`;
+
+        setIsStartingLogin(true);
+        setLoginError('');
+
+        try {
+            // Use the request started on page load, or try again if that one failed
+            const config = (await configRequest.current) ?? (await fetchOAuthConfig());
+            startMalLogin(config); // leaves this page for myanimelist.net
+        } catch {
+            setLoginError('Could not reach the server. Please try again in a moment.');
+            setIsStartingLogin(false);
+        }
     };
 
     const goToDashboard = () => {
@@ -110,11 +129,15 @@ const GetStarted = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLog
             </p>
             <button
                 onClick={handleMALLogin}
-                className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 px-8 py-4 rounded-full font-medium text-lg flex items-center"
+                disabled={isStartingLogin}
+                className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 px-8 py-4 rounded-full font-medium text-lg flex items-center disabled:opacity-60"
             >
-                Login with MyAnimeList
+                {isStartingLogin ? 'Connecting...' : 'Login with MyAnimeList'}
                 <ArrowRight className="ml-2 w-5 h-5" />
             </button>
+            {loginError && (
+                <p className="mt-4 text-red-300">{loginError}</p>
+            )}
             </div>
         </div>
         

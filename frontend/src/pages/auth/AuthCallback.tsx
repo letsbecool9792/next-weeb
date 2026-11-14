@@ -1,76 +1,84 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_URL } from '../../config';
 import { setAuthTokens } from '../../utils/auth';
+import { takePendingLogin } from '../../utils/oauth';
 
 const AuthCallback = ({ setIsLoggedIn }: { setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>> }) => {
     const [error, setError] = useState<string>('');
     const navigate = useNavigate();
+    const started = useRef(false);
 
     useEffect(() => {
-        const exchangeToken = async () => {
-            console.log('[AuthCallback] Starting token exchange');
-            
+        // In development React runs every effect twice. An OAuth code can only
+        // be exchanged once, so the second run must do nothing.
+        if (started.current) return;
+        started.current = true;
+
+        const finishLogin = async () => {
+            // MAL sent the browser here with ?code=...&state=... (or ?error=...)
+            const params = new URLSearchParams(window.location.search);
+            const code = params.get('code');
+            const returnedState = params.get('state');
+            const malError = params.get('error');
+
+            // What this tab stored before it left for MAL
+            const { verifier, state: expectedState } = takePendingLogin();
+
+            // Take the one-time code out of the address bar and browser history
+            window.history.replaceState({}, '', window.location.pathname);
+
             try {
-                // Get code and verifier from URL params
-                const urlParams = new URLSearchParams(window.location.search);
-                const code = urlParams.get('code');
-                const verifier = urlParams.get('verifier');
-                
-                console.log('[AuthCallback] Code from URL:', code ? code.substring(0, 20) + '...' : 'none');
-                console.log('[AuthCallback] Verifier from URL:', verifier ? verifier.substring(0, 20) + '...' : 'none');
-                
-                // Prepare request body
-                const requestBody: any = {};
-                if (code) requestBody.code = code;
-                if (verifier) requestBody.verifier = verifier;
-                
-                // Call backend to exchange OAuth code for JWT tokens
+                if (malError) {
+                    throw new Error(
+                        malError === 'access_denied'
+                            ? 'You declined access on MyAnimeList.'
+                            : `MyAnimeList returned an error: ${malError}`
+                    );
+                }
+                if (!code) {
+                    throw new Error('MyAnimeList did not return an authorization code.');
+                }
+                if (!verifier || !expectedState) {
+                    throw new Error('No login was in progress in this tab. Please start again.');
+                }
+                if (returnedState !== expectedState) {
+                    throw new Error('This login response does not match the one this tab started. Please try again.');
+                }
+
+                // The backend adds the client secret and trades code + verifier for our JWTs
                 const res = await fetch(`${API_URL}/api/exchange-token/`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(requestBody),
+                    body: JSON.stringify({ code, verifier }),
                 });
 
-                console.log('[AuthCallback] Exchange response status:', res.status);
-
                 if (!res.ok) {
-                    const errorData = await res.json();
-                    console.error('[AuthCallback] Exchange failed:', errorData);
-                    throw new Error(errorData.error || 'Failed to exchange token');
+                    const errorData = await res.json().catch(() => ({}));
+                    throw new Error(errorData.error || 'Failed to complete login');
                 }
 
                 const data = await res.json();
-                console.log('[AuthCallback] Tokens received:', { 
-                    hasAccess: !!data.access, 
-                    hasRefresh: !!data.refresh,
-                    user: data.user?.username 
-                });
 
                 // Store tokens and user data in localStorage
                 setAuthTokens(data.access, data.refresh, data.user);
-
-                // Update logged-in state
                 setIsLoggedIn(true);
 
-                console.log('[AuthCallback] Auth successful, redirecting to dashboard');
-                
-                // Redirect to dashboard
-                navigate('/dashboard');
-            } catch (err: any) {
-                console.error('[AuthCallback] Error:', err);
-                setError(err.message || 'Authentication failed');
-                
+                // replace: the Back button should not return to this page
+                navigate('/dashboard', { replace: true });
+            } catch (err) {
+                setError(err instanceof Error ? err.message : 'Authentication failed');
+
                 // Redirect to get-started page after 3 seconds
                 setTimeout(() => {
-                    navigate('/get-started');
+                    navigate('/get-started', { replace: true });
                 }, 3000);
             }
         };
 
-        exchangeToken();
+        finishLogin();
     }, [navigate, setIsLoggedIn]);
 
     if (error) {
