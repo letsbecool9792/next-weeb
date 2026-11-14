@@ -37,11 +37,12 @@ export const getRefreshToken = (): string | null => {
 };
 
 /**
- * Update only the access token (used after refresh)
+ * Store the pair returned by a refresh. The old refresh token is now spent,
+ * so it must be replaced together with the access token.
  */
-export const updateAccessToken = (accessToken: string) => {
+export const updateTokens = (accessToken: string, refreshToken: string) => {
     localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
-    console.log('[Auth] Access token updated');
+    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
 };
 
 /**
@@ -77,7 +78,7 @@ export const isAuthenticated = (): boolean => {
 /**
  * Get Authorization header with Bearer token
  */
-export const getAuthHeader = (): { Authorization: string } | {} => {
+export const getAuthHeader = (): Record<string, string> => {
     const token = getAccessToken();
     if (!token) return {};
     return {

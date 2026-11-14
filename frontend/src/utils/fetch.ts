@@ -2,33 +2,30 @@
  * Authenticated fetch wrapper that automatically includes JWT token
  * and handles token refresh on 401 responses
  */
-import { getAuthHeader, getRefreshToken, updateAccessToken, clearAuth } from './auth';
+import { getAccessToken, getAuthHeader, getRefreshToken, updateTokens, clearAuth } from './auth';
 import { API_URL } from '../config';
 
-let isRefreshing = false;
 let refreshPromise: Promise<string | null> | null = null;
 
 /**
- * Refresh the access token using the refresh token
+ * Trade the refresh token for a new access token and a new refresh token.
+ *
+ * Refresh tokens work once: the backend blacklists each one as it is used.
+ * So within this tab, concurrent 401s share one refresh request instead of
+ * each spending the same token.
  */
-const refreshAccessToken = async (): Promise<string | null> => {
-    // If already refreshing, return the existing promise
-    if (isRefreshing && refreshPromise) {
+const refreshAccessToken = (): Promise<string | null> => {
+    if (refreshPromise) {
         return refreshPromise;
     }
 
-    isRefreshing = true;
     refreshPromise = (async () => {
-        try {
-            const refreshToken = getRefreshToken();
-            
-            if (!refreshToken) {
-                console.error('[Auth] No refresh token available');
-                return null;
-            }
+        const refreshToken = getRefreshToken();
+        if (!refreshToken) {
+            return null;
+        }
 
-            console.log('[Auth] Refreshing access token...');
-            
+        try {
             const response = await fetch(`${API_URL}/api/token/refresh/`, {
                 method: 'POST',
                 headers: {
@@ -37,26 +34,23 @@ const refreshAccessToken = async (): Promise<string | null> => {
                 body: JSON.stringify({ refresh: refreshToken }),
             });
 
-            if (!response.ok) {
-                console.error('[Auth] Token refresh failed:', response.status);
-                return null;
+            if (response.ok) {
+                const data = await response.json();
+                updateTokens(data.access, data.refresh);
+                return data.access as string;
             }
 
-            const data = await response.json();
-            const newAccessToken = data.access;
-
-            if (newAccessToken) {
-                updateAccessToken(newAccessToken);
-                console.log('[Auth] Access token refreshed successfully');
-                return newAccessToken;
+            // Another tab may have refreshed at the same moment and already
+            // spent the token we sent. If storage now holds a different refresh
+            // token, that tab succeeded, and its access token is ours to use.
+            if (getRefreshToken() !== refreshToken) {
+                return getAccessToken();
             }
 
             return null;
-        } catch (error) {
-            console.error('[Auth] Token refresh error:', error);
+        } catch {
             return null;
         } finally {
-            isRefreshing = false;
             refreshPromise = null;
         }
     })();
@@ -68,52 +62,34 @@ const refreshAccessToken = async (): Promise<string | null> => {
  * Authenticated fetch with automatic token refresh on 401
  */
 export const authFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
-    // First attempt with current token
-    let headers = {
-        ...options.headers,
-        ...getAuthHeader(),
-    };
-
     let response = await fetch(url, {
         ...options,
-        headers,
+        headers: {
+            ...options.headers,
+            ...getAuthHeader(),
+        },
     });
 
     // If 401 Unauthorized, try to refresh token and retry once
     if (response.status === 401) {
-        console.log('[Auth] Got 401, attempting token refresh...');
-        console.log('[Auth] Original request URL:', url);
-        
         const newAccessToken = await refreshAccessToken();
 
         if (newAccessToken) {
-            // Retry the request with new token
-            console.log('[Auth] Retrying request with new token...');
-            
-            // Create fresh headers with new token
-            headers = {
-                ...options.headers,
-                'Authorization': `Bearer ${newAccessToken}`,
-            };
-
-            console.log('[Auth] Retry headers include Authorization:', 'Authorization' in headers);
-
             response = await fetch(url, {
                 ...options,
-                headers,
+                headers: {
+                    ...options.headers,
+                    'Authorization': `Bearer ${newAccessToken}`,
+                },
             });
-
-            console.log('[Auth] Retry response status:', response.status);
 
             // If still 401 after refresh, logout
             if (response.status === 401) {
-                console.error('[Auth] Still unauthorized after token refresh, logging out...');
                 clearAuth();
                 window.location.href = '/get-started';
             }
         } else {
-            // Refresh failed, logout
-            console.error('[Auth] Token refresh failed, logging out...');
+            // Refresh failed: the session is over (expired, revoked, or the account is gone)
             clearAuth();
             window.location.href = '/get-started';
         }
@@ -130,4 +106,26 @@ export const authFetch = async (url: string, options: RequestInit = {}): Promise
     }
 
     return response;
+};
+
+/**
+ * End the session on the server too: the backend blacklists the refresh
+ * token, so a copy of it (say, from another device or a leaked backup) can
+ * no longer be used. Local tokens are cleared even if the server is unreachable.
+ */
+export const logout = async () => {
+    const refreshToken = getRefreshToken();
+    if (refreshToken) {
+        try {
+            await fetch(`${API_URL}/api/logout/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refresh: refreshToken }),
+                signal: AbortSignal.timeout(5000), // a sleeping backend must not block logout
+            });
+        } catch {
+            // Server unreachable: the token still expires on its own
+        }
+    }
+    clearAuth();
 };

@@ -1,7 +1,7 @@
 import { User } from 'lucide-react';
 import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
-import { clearAuth } from '../utils/auth';
+import { logout } from '../utils/fetch';
 
 const Header = ({setIsLoggedIn} : {setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>>}) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -13,11 +13,9 @@ const Header = ({setIsLoggedIn} : {setIsLoggedIn: React.Dispatch<React.SetStateA
     };
 
     const handleLogout = async () => {
-        console.log('[Header] Logging out user');
-        
-        // Clear JWT tokens from localStorage
-        clearAuth();
-        
+        // Revoke the refresh token on the server, then clear local tokens
+        await logout();
+
         // Update logged-in state
         setIsLoggedIn(false);
         
