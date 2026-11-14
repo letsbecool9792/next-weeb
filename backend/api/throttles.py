@@ -32,3 +32,8 @@ class TokenRefreshThrottle(IpRateThrottle):
 class AiChatThrottle(UserRateThrottle):
     """Counts per logged-in user. Every message is a paid Gemini request."""
     scope = "ai_chat"
+
+
+class SyncThrottle(UserRateThrottle):
+    """Each sync downloads the user's whole list from MAL."""
+    scope = "sync"

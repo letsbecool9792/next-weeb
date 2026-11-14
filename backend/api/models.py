@@ -11,6 +11,8 @@ class UserProfile(models.Model):
     # Lets us get a new access token without sending the user back to MAL.
     mal_refresh_token = models.TextField(blank=True, null=True)
     mal_token_expires_at = models.DateTimeField(blank=True, null=True)
+    # When the anime list was last copied from MAL. Empty means never.
+    last_synced_at = models.DateTimeField(blank=True, null=True)
 
     name = models.CharField(max_length=100, blank=True, null=True)
     birthday = models.DateField(blank=True, null=True)
@@ -35,6 +37,16 @@ class AnimeEntry(models.Model):
     finish_date = models.DateField(null=True, blank=True)
     last_updated = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    # Facts about the show itself, copied from MAL at sync time
+    genres = models.JSONField(default=list)       # list of genre names
+    studios = models.JSONField(default=list)      # list of studio names
+    num_episodes = models.IntegerField(default=0)  # 0 when MAL does not know yet
+    average_episode_duration = models.IntegerField(default=0)  # seconds
+    media_type = models.CharField(max_length=20, blank=True, default="")
+    mean = models.FloatField(null=True, blank=True)            # community score
+    popularity = models.IntegerField(null=True, blank=True)    # rank by members, 1 = most popular
+    num_list_users = models.IntegerField(null=True, blank=True)
 
     class Meta:
         unique_together = ('user', 'mal_id')

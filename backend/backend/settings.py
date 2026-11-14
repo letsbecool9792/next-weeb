@@ -237,6 +237,7 @@ REST_FRAMEWORK = {
         'login': '10/min',
         'token_refresh': '30/min',
         'ai_chat': '20/hour',
+        'sync': '10/min',
     },
 }
 

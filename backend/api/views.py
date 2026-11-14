@@ -16,7 +16,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAuthenticated
 
 from django.conf import settings
-from django.http import JsonResponse, HttpResponse
+from django.http import HttpResponse
 
 from django.contrib.auth.models import User
 
@@ -26,7 +26,8 @@ from .models import AnimeEntry
 from .models import UserProfile
 from . import mal
 from .mal import mal_get, MalNotFound, MalUnavailable
-from .throttles import AiChatThrottle, LoginThrottle
+from .throttles import AiChatThrottle, LoginThrottle, SyncThrottle
+from . import sync
 
 # MAL Genre ID mapping (fetched from MAL API)
 GENRE_IDS = {
@@ -213,8 +214,9 @@ def exchange_oauth_token(request):
         logger.error(f"[exchange_oauth_token] Exception: {str(e)}", exc_info=True)
         return Response({"error": "Something went wrong on our side. Please try again."}, status=500)
 
-@api_view(['GET', 'POST'])
+@api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@throttle_classes([SyncThrottle])
 def sync_mal_profile(request):
     """ Fetch from MAL and store in UserProfile """
     data = mal_get(request.user, "/users/@me")
@@ -257,36 +259,18 @@ def cached_mal_profile(request):
         logger.error(f"[cached_mal_profile] Error: {str(e)}", exc_info=True)
         return Response({"error": "Could not load your profile."}, status=500)
 
-@api_view(['GET'])
+@api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@throttle_classes([SyncThrottle])
 def sync_anime_list(request):
-    data = mal_get(request.user, "/users/@me/animelist", {"fields": "list_status", "limit": 1000})
-    anime_list = data.get("data", [])
-
-    AnimeEntry.objects.filter(user=request.user).delete()
-
-    for item in anime_list:
-        anime = item["node"]
-        status = item["list_status"]
-        AnimeEntry.objects.create(
-            user=request.user,
-            mal_id=anime["id"],
-            title=anime["title"],
-            status=status.get("status", ""),
-            image_url=anime.get("main_picture", {}).get("medium"),
-            score=status.get("score"),
-            episodes_watched=status.get("num_episodes_watched"),
-            is_rewatching=status.get("is_rewatching", False),
-            start_date=status.get("start_date") or None,
-            finish_date=status.get("finish_date") or None,
-            last_updated=status.get("updated_at") or None
-        )
-
-    return JsonResponse({"message": "Anime list synced", "count": len(anime_list)})
+    """Copy the user's full MAL list into our database."""
+    count = sync.sync_anime_list(request.user)
+    return Response({"message": "Anime list synced", "count": count})
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_cached_anime_list(request):
+    sync.ensure_synced(request.user)
     entries = AnimeEntry.objects.filter(user=request.user).values(
         "mal_id",
         "title",
@@ -299,7 +283,7 @@ def get_cached_anime_list(request):
         "finish_date",
         "last_updated",
     )
-    return JsonResponse(list(entries), safe=False)
+    return Response(list(entries))
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -336,32 +320,23 @@ def search_anime(request):
 @permission_classes([IsAuthenticated])
 def get_stats_data(request):
     """
-    Fetches detailed anime data from MAL for stats calculations
+    Completed shows with the details stats needs, read from our copy of the
+    list. Same response shape as when this asked MAL directly.
     """
-    data = mal_get(request.user, "/users/@me/animelist", {
-        "fields": "list_status,genres,studios,num_episodes,average_episode_duration,media_type",
-        "limit": 1000,
-        "status": "completed",  # Focus on completed anime for accurate stats
-    })
-    anime_data = data.get("data", [])
-
-    # Process data for stats
-    stats_list = []
-    for item in anime_data:
-        anime = item["node"]
-        list_status = item.get("list_status", {})
-
-        stats_list.append({
-            "title": anime.get("title"),
-            "score": list_status.get("score", 0),
-            "genres": [g["name"] for g in anime.get("genres", [])],
-            "studios": [s["name"] for s in anime.get("studios", [])],
-            "num_episodes": anime.get("num_episodes", 0),
-            "average_episode_duration": anime.get("average_episode_duration", 0),
-            "media_type": anime.get("media_type", ""),
-        })
-
-    return Response(stats_list)
+    sync.ensure_synced(request.user)
+    completed = AnimeEntry.objects.filter(user=request.user, status="completed")
+    return Response([
+        {
+            "title": entry.title,
+            "score": entry.score or 0,
+            "genres": entry.genres,
+            "studios": entry.studios,
+            "num_episodes": entry.num_episodes,
+            "average_episode_duration": entry.average_episode_duration,
+            "media_type": entry.media_type,
+        }
+        for entry in completed
+    ])
 
 
 # ============= RECOMMENDATIONS SYSTEM =============
