@@ -30,7 +30,7 @@ type StatsData = {
     average_episode_duration: number;
 };
 
-const Dashboard = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
+const Dashboard = () => {
     const [profile, setProfile] = useState<Profile | null>(null);
     const [animeList, setAnimeList] = useState<AnimeEntry[]>([]);
     const [statsData, setStatsData] = useState<StatsData[]>([]);
@@ -120,7 +120,7 @@ const Dashboard = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-gray-900 to-fuchsia-950 text-white">
-            <Header setIsLoggedIn={setIsLoggedIn} />
+            <Header />
 
             <div className="container mx-auto px-4 py-8">
                 {/* Welcome Section */}

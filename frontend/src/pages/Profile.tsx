@@ -12,7 +12,7 @@ type Profile = {
 	picture: string;
 };
 
-const Profile = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
+const Profile = () => {
 	const [profile, setProfile] = useState<Profile | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [syncing, setSyncing] = useState(false);
@@ -62,7 +62,7 @@ const Profile = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
 			year: 'numeric' 
 			};
 			return date.toLocaleDateString('en-US', options);
-		} catch (e) {
+		} catch {
 			return "Invalid date";
 		}
 	};
@@ -79,7 +79,7 @@ const Profile = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
 
 	return (
 	<div className="min-h-screen bg-gray-900 text-white">
-		<Header setIsLoggedIn={setIsLoggedIn} />
+		<Header />
 		
 		<div className="max-w-4xl mx-auto p-6">
 		<div className="flex items-center justify-between mb-8">

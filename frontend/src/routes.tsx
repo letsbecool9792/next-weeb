@@ -1,5 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 
+import { RequireAuth } from "./auth/RequireAuth";
 import Landing from "./pages/Landing";
 import GetStarted from "./pages/auth/GetStarted";
 import AuthCallback from "./pages/auth/AuthCallback";
@@ -12,96 +13,27 @@ import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/Dashboard";
 import Recommendations from "./pages/Recommendations";
 
-type AppRoutesProps = {
-	isLoggedIn: boolean;
-	setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>>;
-};
-
-const AppRoutes = ({ isLoggedIn, setIsLoggedIn }: AppRoutesProps) => {
-	return (
+const AppRoutes = () => (
 	<Routes>
+		{/* Open to everyone */}
 		<Route path="/" element={<Landing />} />
+		<Route path="/get-started" element={<GetStarted />} />
+		<Route path="/auth/callback" element={<AuthCallback />} />
 
-		<Route
-			path="/get-started"
-			element={
-				<GetStarted
-				isLoggedIn={isLoggedIn}
-				setIsLoggedIn={setIsLoggedIn}
-				/>
-			}
-		/>
-
-		<Route
-			path="/auth/callback"
-			element={
-				<AuthCallback
-				setIsLoggedIn={setIsLoggedIn}
-				/>
-			}
-		/>
-
-		<Route
-			path="/animelist"
-			element={
-				<AnimeList
-				isLoggedIn={isLoggedIn}
-				setIsLoggedIn={setIsLoggedIn}
-				/>
-			}
-		/>
-
-		<Route
-			path="/profile"
-			element={
-				<Profile 
-				setIsLoggedIn={setIsLoggedIn} 
-				/>
-			}
-		/>
-
-		<Route 
-            path="/anime/:anime_id" 
-            element={
-			<AnimeDetail setIsLoggedIn={setIsLoggedIn} />
-		    }
-        />
-
-		<Route
-			path="/search"
-			element={
-				<SearchAnime setIsLoggedIn={setIsLoggedIn}/>
-			}
-		/>
-
-		<Route 
-			path="/stats" 
-			element={
-				<Stats setIsLoggedIn={setIsLoggedIn} />
-			} 
-		/>
-
-		<Route 
-			path="/recommendations" 
-			element={
-				<Recommendations setIsLoggedIn={setIsLoggedIn} />
-			} 
-		/>
-
-        <Route 
-            path="/dashboard" 
-            element={
-                <Dashboard setIsLoggedIn={setIsLoggedIn} />
-            }
-        />
+		{/* Logged-in only: RequireAuth sends everyone else to /get-started */}
+		<Route element={<RequireAuth />}>
+			<Route path="/dashboard" element={<Dashboard />} />
+			<Route path="/animelist" element={<AnimeList />} />
+			<Route path="/profile" element={<Profile />} />
+			<Route path="/anime/:anime_id" element={<AnimeDetail />} />
+			<Route path="/search" element={<SearchAnime />} />
+			<Route path="/stats" element={<Stats />} />
+			<Route path="/recommendations" element={<Recommendations />} />
+		</Route>
 
 		{/* 404 Catch-all route */}
-		<Route 
-			path="*" 
-			element={<NotFound />} 
-		/>
+		<Route path="*" element={<NotFound />} />
 	</Routes>
-	);
-};
+);
 
 export default AppRoutes;

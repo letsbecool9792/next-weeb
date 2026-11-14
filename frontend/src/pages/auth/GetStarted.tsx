@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { ArrowRight, Shield, Zap, BarChart2, List } from 'lucide-react';
 import { usePostHog } from 'posthog-js/react';
-import { isAuthenticated } from '../../utils/auth';
+import { useAuth } from '../../auth/useAuth';
 import { fetchOAuthConfig, startMalLogin, type OAuthConfig } from '../../utils/oauth';
 
-const GetStarted = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>>}) => {
-    //const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
+const GetStarted = () => {
+    const { isLoggedIn } = useAuth();
     const [isStartingLogin, setIsStartingLogin] = useState(false);
     const [loginError, setLoginError] = useState('');
     const configRequest = useRef<Promise<OAuthConfig | null> | null>(null);
@@ -23,22 +23,10 @@ const GetStarted = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLog
     }, []);
 
     useEffect(() => {
-        // Check if user is authenticated via JWT token in localStorage
-        const checkAuth = () => {
-            const authenticated = isAuthenticated();
-            setIsLoggedIn(authenticated);
-            setIsLoading(false);
-            
-            if (authenticated) {
-                posthog?.capture('user_logged_in', {
-                    login_type: 'returning_session',
-                });
-            }
-        };
-        
-        checkAuth();
-    }, [setIsLoggedIn, posthog]);
-      
+        if (isLoggedIn) {
+            posthog?.capture('user_logged_in', { login_type: 'returning_session' });
+        }
+    }, [isLoggedIn, posthog]);
 
     const handleMALLogin = async () => {
         // Track MAL login button click
@@ -55,10 +43,6 @@ const GetStarted = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLog
             setLoginError('Could not reach the server. Please try again in a moment.');
             setIsStartingLogin(false);
         }
-    };
-
-    const goToDashboard = () => {
-        window.location.href = '/dashboard';
     };
 
     const features = [
@@ -79,17 +63,6 @@ const GetStarted = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLog
     }
     ];
 
-    if (isLoading) {
-    return (
-        <div className="min-h-screen bg-gradient-to-b from-purple-900 to-indigo-900 flex items-center justify-center text-white">
-        <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-purple-300 mx-auto"></div>
-            <p className="mt-4 text-xl font-medium text-purple-300">Booting up your taste sensors...</p>
-        </div>
-        </div>
-    );
-    }
-
     if (isLoggedIn) {
         return (
             <div className="min-h-screen bg-gradient-to-b from-purple-900 to-indigo-900 flex items-center justify-center text-white">
@@ -97,13 +70,13 @@ const GetStarted = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLog
                 <div className="text-center">
                 <h1 className="text-2xl font-bold">You're already logged in!</h1>
                 <p className="mt-2 text-purple-200">Your anime journey awaits.</p>
-                <button
-                    onClick={goToDashboard}
-                    className="mt-6 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 px-6 py-3 rounded-full font-medium flex items-center justify-center mx-auto"
+                <Link
+                    to="/dashboard"
+                    className="mt-6 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 px-6 py-3 rounded-full font-medium inline-flex items-center justify-center"
                 >
                     Go to Dashboard
                     <ArrowRight className="ml-2 w-5 h-5" />
-                </button>
+                </Link>
                 </div>
             </div>
             </div>

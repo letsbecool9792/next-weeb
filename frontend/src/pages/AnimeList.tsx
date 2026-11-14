@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Funnel, ChevronsUp, ChevronDown, LayoutGrid, AlignJustify, Eye, Calendar, Star, Clock, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -7,7 +7,6 @@ import Footer from '../components/Footer';
 import LoadingScreen from '../components/LoadingScreen';
 import { API_URL } from '../config';
 import { authFetch } from '../utils/fetch';
-import { isAuthenticated } from '../utils/auth';
 
 type AnimeEntry = {
     mal_id: number;
@@ -22,33 +21,24 @@ type AnimeEntry = {
     last_updated: string;
 };
 
-const AnimeList = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>>}) => {
+const AnimeList = () => {
     const [animeList, setAnimeList] = useState<AnimeEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
-    const [authChecked, setAuthChecked] = useState(false);
     const [filterStatus, setFilterStatus] = useState<string>('all');
     const [sortBy, setSortBy] = useState<string>('title');
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
-    // Auth check
-    useEffect(() => {
-        if (isAuthenticated()) {
-            setIsLoggedIn(true);
-        }
-        setAuthChecked(true);
-    }, []);
-      
     // Anime list loader
-    const loadAnime = async () => {
+    const loadAnime = useCallback(async () => {
         const res = await authFetch(`${API_URL}/api/cached-animelist/`);
         if (res.ok) {
             const data: AnimeEntry[] = await res.json();
             setAnimeList(data);
         }
         setLoading(false);
-    };
+    }, []);
 
     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -69,42 +59,10 @@ const AnimeList = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLogg
         setSyncing(false);
     };
     
-    // Load list after confirming session
-    // Auto-sync then load cache once we know we're logged in
+    // Load the list once. The backend runs the first sync itself when needed.
     useEffect(() => {
-        if (authChecked && isLoggedIn) {
-            (async () => {
-            setSyncing(true);
-        
-            // 1) Fetch cached data directly:
-            const cacheRes = await authFetch(`${API_URL}/api/cached-animelist/`);
-            const cacheData: AnimeEntry[] = cacheRes.ok ? await cacheRes.json() : [];
-        
-            // 2) If cache was empty, sync from MAL:
-            if (cacheData.length === 0) {
-                await authFetch(`${API_URL}/api/sync-animelist/`, { method: 'POST' });
-                // 3) Re-fetch cache after sync:
-                const updatedRes = await authFetch(`${API_URL}/api/cached-animelist/`);
-                const updatedData: AnimeEntry[] = updatedRes.ok ? await updatedRes.json() : [];
-                setAnimeList(updatedData);
-            } else {
-                // If cache wasn’t empty, just use it
-                setAnimeList(cacheData);
-            }
-        
-            setLoading(false);
-            setSyncing(false);
-            })();
-        }
-    }, [authChecked, isLoggedIn]);
-      
-  
-    // If not logged in and auth checked, bounce to /
-    useEffect(() => {
-        if (authChecked && !isLoggedIn) {
-            window.location.href = '/';
-        }
-    }, [authChecked, isLoggedIn]);
+        loadAnime();
+    }, [loadAnime]);
 
     // Get filtered and sorted anime list
     const getFilteredAndSortedList = () => {
@@ -137,13 +95,6 @@ const AnimeList = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLogg
     };
 
     // Loading and error states
-    if (!authChecked) {
-        return (
-            <div className="bg-gray-900">
-                <LoadingScreen message="Checking authentication..." />
-            </div>
-        );
-    }
 
     if (loading) {
         return (
@@ -156,7 +107,7 @@ const AnimeList = ({isLoggedIn, setIsLoggedIn} : {isLoggedIn: boolean, setIsLogg
 
     return (
         <div className="min-h-screen bg-gray-900  bg-opacity-10 text-white">
-            <Header setIsLoggedIn={setIsLoggedIn}/>
+            <Header />
             
             <div className="container mx-auto px-4 py-8">
                 {/* Hero Section */}

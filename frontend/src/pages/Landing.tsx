@@ -1,11 +1,16 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronRight, BarChart2, Filter, List, Zap, Award, CircleCheck, Menu, X } from 'lucide-react';
 
 import Card from '../components/Card';
 import Footer from '../components/Footer';
 import HowItWorksCard from '../components/HowItWorksCard';
+import { useAuth } from '../auth/useAuth';
 
 const Landing = () => {
+    // Logged-in visitors skip the login page
+    const { isLoggedIn } = useAuth();
+    const startPath = isLoggedIn ? '/dashboard' : '/get-started';
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     const features = [
@@ -81,10 +86,10 @@ const Landing = () => {
             <a href="#about" className="hover:text-purple-300 transition-colors">About</a>
             </div>
             <div className="hidden md:block">
-            <a href = '/get-started' className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 px-5 py-2 rounded-full font-medium flex items-center">
+            <Link to={startPath} className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 px-5 py-2 rounded-full font-medium flex items-center">
                 Get Started
                 <ArrowRight className="ml-2 w-4 h-4" />
-            </a>
+            </Link>
             </div>
             <div className="md:hidden">
             <button 
@@ -106,10 +111,10 @@ const Landing = () => {
                 <a href="#features" className="hover:text-purple-300 transition-colors">Features</a>
                 <a href="#how-it-works" className="hover:text-purple-300 transition-colors">How It Works</a>
                 <a href="#about" className="hover:text-purple-300 transition-colors">About</a>
-                <a href = '/get-started' className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 px-5 py-2 rounded-full font-medium flex items-center justify-center">
+                <Link to={startPath} className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 px-5 py-2 rounded-full font-medium flex items-center justify-center">
                 Get Started
                 <ArrowRight className="ml-2 w-4 h-4" />
-                </a>
+                </Link>
             </div>
             </div>
         )}
@@ -131,10 +136,10 @@ const Landing = () => {
                 Discover anime that actually fits your taste. Powered by MyAnimeList + smart-ass AI.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-4">
-                <a href='/get-started' className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 px-6 py-3 rounded-full font-medium flex items-center justify-center">
+                <Link to={startPath} className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 px-6 py-3 rounded-full font-medium flex items-center justify-center">
                 Get Started
                 <ArrowRight className="ml-2 w-5 h-5" />
-                </a>
+                </Link>
             </div>
             </div>
             <div className="md:w-1/2 relative">
@@ -278,10 +283,10 @@ const Landing = () => {
                 Built by a weeb, for weebs. I'm a developer who loves anime and tech, and I created NextWeeb to solve the problem of finding anime that truly matches your unique taste.
             </p>
             <div className="mt-8">
-                <a href='/get-started' className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 px-6 py-3 rounded-full font-medium inline-flex items-center mx-auto">
+                <Link to={startPath} className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 px-6 py-3 rounded-full font-medium inline-flex items-center mx-auto">
                 Get Started Now
                 <ArrowRight className="ml-2 w-5 h-5" />
-                </a>
+                </Link>
             </div>
             </div>
         </div>

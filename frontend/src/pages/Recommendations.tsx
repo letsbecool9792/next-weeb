@@ -94,7 +94,7 @@ const Section = ({ icon, title, subtitle, picks, accent, badge }: {
     );
 };
 
-const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>> }) => {
+const Recommendations = () => {
     const [recommendations, setRecommendations] = useState<Recommendations | null>(null);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState('');
@@ -211,7 +211,7 @@ const Recommendations = ({ setIsLoggedIn }: { setIsLoggedIn: React.Dispatch<Reac
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-gray-900 to-fuchsia-950 text-white">
-            <Header setIsLoggedIn={setIsLoggedIn} />
+            <Header />
 
             <div className="container mx-auto px-4 py-8">
                 {/* Hero Section */}

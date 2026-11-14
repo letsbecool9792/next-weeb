@@ -20,7 +20,7 @@ type SearchDetail = SearchResultNode & {
 	start_date: string;
 };
 
-const SearchAnime = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
+const SearchAnime = () => {
 	const [query, setQuery] = useState('');
 	const [results, setResults] = useState<SearchDetail[]>([]);
 	const [loading, setLoading] = useState(false);
@@ -40,7 +40,7 @@ const SearchAnime = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
 		const raw = await res.json();
 
 		const nodes: SearchResultNode[] = Array.isArray(raw.data)
-		? raw.data.map((item: any) => item.node)
+		? raw.data.map((item: { node: SearchResultNode }) => item.node)
 		: [];
 
 		// 2) fetch details for each node in parallel
@@ -82,7 +82,7 @@ const SearchAnime = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
 
 	return (
 	<div className="min-h-screen bg-gradient-to-br from-gray-900 to-purple-900 text-white">
-		<Header setIsLoggedIn={setIsLoggedIn}/>
+		<Header />
 		
 		<main className="max-w-6xl mx-auto px-6 py-8">
 		<h1 className="text-3xl font-bold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-500">

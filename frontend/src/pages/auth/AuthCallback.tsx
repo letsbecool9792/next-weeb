@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_URL } from '../../config';
-import { setAuthTokens } from '../../utils/auth';
+import { useAuth } from '../../auth/useAuth';
 import { takePendingLogin } from '../../utils/oauth';
 
-const AuthCallback = ({ setIsLoggedIn }: { setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>> }) => {
+const AuthCallback = () => {
+    const { signIn } = useAuth();
     const [error, setError] = useState<string>('');
     const navigate = useNavigate();
     const started = useRef(false);
@@ -62,9 +63,8 @@ const AuthCallback = ({ setIsLoggedIn }: { setIsLoggedIn: React.Dispatch<React.S
 
                 const data = await res.json();
 
-                // Store tokens and user data in localStorage
-                setAuthTokens(data.access, data.refresh, data.user);
-                setIsLoggedIn(true);
+                // Store tokens and user data, and mark the app as logged in
+                signIn(data.access, data.refresh, data.user);
 
                 // replace: the Back button should not return to this page
                 navigate('/dashboard', { replace: true });
@@ -79,7 +79,7 @@ const AuthCallback = ({ setIsLoggedIn }: { setIsLoggedIn: React.Dispatch<React.S
         };
 
         finishLogin();
-    }, [navigate, setIsLoggedIn]);
+    }, [navigate, signIn]);
 
     if (error) {
         return (

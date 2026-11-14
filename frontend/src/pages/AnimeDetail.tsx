@@ -51,7 +51,7 @@ type Detail = {
     };
 };
 
-const AnimeDetail = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
+const AnimeDetail = () => {
     const { anime_id } = useParams<{ anime_id: string }>();
     const [detail, setDetail] = useState<Detail | null>(null);
     const [loading, setLoading] = useState(true);
@@ -73,7 +73,7 @@ const AnimeDetail = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
         }
         setLoading(false);
     })();
-    }, [anime_id]);
+    }, [anime_id, posthog]);
 
     if (loading) return (
         <div className="bg-gray-900">
@@ -99,7 +99,7 @@ const AnimeDetail = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
 
     return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-fuchsia-950 text-white">
-        <Header setIsLoggedIn={setIsLoggedIn} />
+        <Header />
 
         {/* Hero Section with Backdrop */}
         <div className="relative h-80 w-full overflow-hidden">

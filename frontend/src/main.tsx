@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { PostHogProvider } from 'posthog-js/react'
+import type { PostHog } from 'posthog-js'
 import { API_URL } from './config'
 
 const posthogKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY;
@@ -15,7 +16,7 @@ const options = {
   autocapture: true,
   capture_pageview: true,
   capture_pageleave: true,
-  loaded: (posthog: any) => {
+  loaded: (posthog: PostHog) => {
     console.log('[PostHog] Successfully loaded!', posthog);
   },
 } as const

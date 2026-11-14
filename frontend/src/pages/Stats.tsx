@@ -17,7 +17,7 @@ type AnimeEntry = {
     media_type: string;
 };
 
-const Stats = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
+const Stats = () => {
     const [animeList, setAnimeList] = useState<AnimeEntry[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -103,7 +103,7 @@ const Stats = ({ setIsLoggedIn }: { setIsLoggedIn: any }) => {
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-gray-900 to-fuchsia-950 text-white">
-            <Header setIsLoggedIn={setIsLoggedIn} />
+            <Header />
 
             <div className="container mx-auto px-4 py-8">
                 <h1 className="text-4xl font-bold mb-8 bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
