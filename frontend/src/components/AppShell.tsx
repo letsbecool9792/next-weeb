@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
 import Header from './Header';
 import Footer from './Footer';
+import ErrorBoundary from './ErrorBoundary';
 
 /**
  * Layout route for every logged-in page (see routes.tsx): header, the page,
@@ -24,9 +25,12 @@ const AppShell = () => {
                 transition={{ duration: 0.3, ease: 'easeOut' }}
                 className="min-h-screen flex-1"
             >
-                <Suspense fallback={null}>
-                    <Outlet />
-                </Suspense>
+                {/* A crash on one page shows a message instead of a blank screen */}
+                <ErrorBoundary key={location.pathname}>
+                    <Suspense fallback={null}>
+                        <Outlet />
+                    </Suspense>
+                </ErrorBoundary>
             </motion.main>
             <Footer />
         </div>

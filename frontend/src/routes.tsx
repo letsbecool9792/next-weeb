@@ -4,6 +4,7 @@ import { Routes, Route } from "react-router-dom";
 import { RequireAuth } from "./auth/RequireAuth";
 import AppShell from "./components/AppShell";
 import ScrollToTop from "./components/ScrollToTop";
+import ErrorBoundary from "./components/ErrorBoundary";
 import Landing from "./pages/Landing";
 
 // Every other page is downloaded only when first opened, so the landing page
@@ -25,6 +26,7 @@ const PageLoading = () => <div className="page-bg" />;
 const AppRoutes = () => (
 	<>
 		<ScrollToTop />
+		<ErrorBoundary>
 		<Suspense fallback={<PageLoading />}>
 			<Routes>
 				{/* Open to everyone */}
@@ -50,6 +52,7 @@ const AppRoutes = () => (
 				<Route path="*" element={<NotFound />} />
 			</Routes>
 		</Suspense>
+		</ErrorBoundary>
 	</>
 );
 
