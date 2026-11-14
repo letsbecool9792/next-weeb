@@ -13,7 +13,9 @@ import Footer from './Footer';
 const AppShell = () => {
     const location = useLocation();
     return (
-        <div className="page-bg flex flex-col">
+        // overflow-x-clip: tilted tickers and big kanji must not widen the page.
+        // (clip, not hidden, so sticky elements like My List's toolbar still stick)
+        <div className="page-bg flex flex-col overflow-x-clip">
             <Header />
             <motion.main
                 key={location.pathname}
