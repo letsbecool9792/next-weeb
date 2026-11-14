@@ -5,76 +5,57 @@ import { usePostHog } from 'posthog-js/react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import LoadingScreen from '../components/LoadingScreen';
+import Poster from '../components/Poster';
 import { API_URL } from '../config';
 import { authFetch } from '../utils/fetch';
 
-type SearchResultNode = {
+/** One search result, with the fields the backend asks MAL for */
+type SearchResult = {
 	id: number;
 	title: string;
-	main_picture: { medium: string; large?: string };
-};
-
-type SearchDetail = SearchResultNode & {
-	genres: { id: number; name: string }[];
-	num_episodes: number;
-	start_date: string;
+	main_picture?: { medium: string; large?: string };
+	genres?: { id: number; name: string }[];
+	num_episodes?: number;
+	start_date?: string;
 };
 
 const SearchAnime = () => {
 	const [query, setQuery] = useState('');
-	const [results, setResults] = useState<SearchDetail[]>([]);
+	const [results, setResults] = useState<SearchResult[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [hasSearched, setHasSearched] = useState(false);
+	const [error, setError] = useState('');
 	const posthog = usePostHog();
 
 	const handleSearch = async () => {
-	if (!query.trim()) return;
+	const q = query.trim();
+	if (!q) return;
+	// MAL rejects shorter searches; say so instead of failing silently
+	if (q.length < 3) {
+		setError('Type at least 3 characters to search.');
+		return;
+	}
 	setLoading(true);
 	setHasSearched(true);
+	setError('');
 	try {
-		// 1) fetch search results
-		const res = await authFetch(
-		`${API_URL}/api/search-anime/?q=${encodeURIComponent(query)}&limit=6`
-		);
-		if (!res.ok) throw new Error(`Search HTTP ${res.status}`);
-		const raw = await res.json();
+		// One request: the backend asks MAL for genres, episodes and start date
+		// with the results (this used to be 1 search + 6 detail requests)
+		const res = await authFetch(`${API_URL}/api/search-anime/?q=${encodeURIComponent(q)}&limit=12`);
+		if (!res.ok) throw new Error(`HTTP ${res.status}`);
+		const raw: { data?: { node: SearchResult }[] } = await res.json();
+		const found = (raw.data ?? []).map((item) => item.node);
+		setResults(found);
 
-		const nodes: SearchResultNode[] = Array.isArray(raw.data)
-		? raw.data.map((item: { node: SearchResultNode }) => item.node)
-		: [];
-
-		// 2) fetch details for each node in parallel
-		const detailed: SearchDetail[] = (
-		await Promise.all(
-			nodes.map(async (node) => {
-			const dRes = await authFetch(
-				`${API_URL}/api/anime/${node.id}/`
-			);
-			if (!dRes.ok) throw new Error(`Detail HTTP ${dRes.status}`);
-			const det = await dRes.json();
-			// pick only the fields we need
-			return {
-				id: node.id,
-				title: node.title,
-				main_picture: node.main_picture,
-				genres: det.genres ?? [],
-				num_episodes: det.num_episodes,
-				start_date: det.start_date,
-			};
-			})
-		)
-		).filter(Boolean);
-
-		setResults(detailed);
-		
 		// Track anime search
 		posthog?.capture('anime_searched', {
-			query: query,
-			results_count: detailed.length,
+			query: q,
+			results_count: found.length,
 		});
-	} catch (err) {
-		console.error('Search + detail fetch failed:', err);
+	} catch {
+		// Shown as an error, not as "no results found"
 		setResults([]);
+		setError("Search failed. MyAnimeList or our server may be down; try again in a moment.");
 	} finally {
 		setLoading(false);
 	}
@@ -133,7 +114,11 @@ const SearchAnime = () => {
 			</div>
 		)}
 
-		{!loading && hasSearched && results.length === 0 && (
+		{error && !loading && (
+			<p className="text-center text-red-300 mb-8">{error}</p>
+		)}
+
+		{!loading && hasSearched && !error && results.length === 0 && (
 			<div className="text-center py-16 px-4">
 			<div className="w-16 h-16 mx-auto mb-5 bg-purple-800/60 backdrop-blur-sm border border-purple-500/40 rounded-full flex items-center justify-center">
 				<Search className="h-6 w-6 text-purple-300" />
@@ -154,22 +139,22 @@ const SearchAnime = () => {
 			>
 				{/* <div className="number">{anime.id}</div> */}
 				<div className="overflow-hidden rounded-lg mb-4">
-				<img
-					src={anime.main_picture.medium}
-					alt={anime.title}
+				<Poster
+					src={anime.main_picture?.medium}
+					title={anime.title}
 					className="w-full h-48 object-cover transition-transform duration-500 group-hover:scale-110"
 				/>
 				</div>
 				<h2 className="text-xl font-semibold mb-2 line-clamp-1">{anime.title}</h2>
 				<div className="flex flex-wrap gap-2 mb-3">
-				{anime.genres.slice(0, 3).map(genre => (
+				{(anime.genres ?? []).slice(0, 3).map(genre => (
 					<span key={genre.id} className="text-xs px-2 py-1 bg-purple-700/50 rounded-full border border-purple-500/30">
 					{genre.name}
 					</span>
 				))}
 				</div>
 				<div className="flex justify-between text-sm text-purple-300">
-				<span>{anime.num_episodes > 0 ? `${anime.num_episodes} episodes` : 'Unknown episodes'}</span>
+				<span>{anime.num_episodes ? `${anime.num_episodes} episodes` : 'Unknown episodes'}</span>
 				<span>{anime.start_date?.split('-')[0] || 'Unknown year'}</span>
 				</div>
 			</Link>

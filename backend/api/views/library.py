@@ -113,7 +113,13 @@ def search_anime(request):
     except ValueError:
         limit = 10
 
-    return Response(mal_get(request.user, "/anime", {"q": query, "limit": limit}))
+    # Ask for the card's details in the search itself. The page used to fetch
+    # each result's full detail page separately: seven requests per search.
+    return Response(mal_get(request.user, "/anime", {
+        "q": query,
+        "limit": limit,
+        "fields": "id,title,main_picture,genres,num_episodes,start_date,mean,media_type",
+    }))
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

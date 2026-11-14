@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, PieChart, Pie, Legend } from 'recharts';
 import { TrendingUp, Award, Clock, Film, Star, BarChart2 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import LoadingScreen from '../components/LoadingScreen';
+import ErrorState from '../components/ErrorState';
+import { averageScore, LOAD_ERROR } from '../utils/format';
 import { API_URL } from '../config';
 import { authFetch } from '../utils/fetch';
 
@@ -20,21 +22,42 @@ type AnimeEntry = {
 const Stats = () => {
     const [animeList, setAnimeList] = useState<AnimeEntry[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    const load = useCallback(async () => {
+        setLoading(true);
+        setError('');
+        try {
+            const res = await authFetch(`${API_URL}/api/stats-data/`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            setAnimeList(await res.json());
+        } catch {
+            setError(LOAD_ERROR);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
     useEffect(() => {
-        (async () => {
-            const res = await authFetch(`${API_URL}/api/stats-data/`);
-            if (res.ok) {
-                const data = await res.json();
-                setAnimeList(data);
-            }
-            setLoading(false);
-        })();
-    }, []);
+        load();
+    }, [load]);
 
     if (loading) return (
         <div className="bg-gradient-to-b from-gray-900 to-fuchsia-950">
             <LoadingScreen message="Crunching your stats..." />
+        </div>
+    );
+
+    if (error || animeList.length === 0) return (
+        <div className="min-h-screen bg-gradient-to-b from-gray-900 to-fuchsia-950 text-white">
+            <Header />
+            {error ? (
+                <ErrorState message={error} onRetry={load} />
+            ) : (
+                <div className="card text-center max-w-xl mx-auto my-12 text-purple-200">
+                    Stats are built from the shows you've completed. Mark a few as completed on MyAnimeList, then sync.
+                </div>
+            )}
         </div>
     );
 
@@ -76,10 +99,8 @@ const Stats = () => {
     const totalHours = Math.round(totalTimeMinutes / 60);
     const totalDays = Math.floor(totalHours / 24);
 
-    // Top rated anime (10s)
-    const topRated = animeList
-        .filter(a => a.score === 10)
-        .slice(0, 5);
+    // Every show rated 10 (the card used to count only the first five)
+    const perfectTens = animeList.filter(a => a.score === 10);
 
     // Media type breakdown
     const mediaTypeMap = new Map<string, number>();
@@ -97,9 +118,9 @@ const Stats = () => {
     const PIE_COLORS = ['#c084fc', '#f472b6', '#7dd3fc', '#fbbf24', '#34d399'];
 
     // Calculate average score
-    const avgScore = animeList.length > 0 
-        ? (animeList.reduce((sum, a) => sum + (a.score || 0), 0) / animeList.filter(a => a.score > 0).length).toFixed(2)
-        : 0;
+    // "–" when nothing is rated yet (this used to show NaN)
+    const average = averageScore(animeList.map(a => a.score));
+    const avgScore = average === null ? '–' : average.toFixed(2);
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-gray-900 to-fuchsia-950 text-white">
@@ -153,7 +174,7 @@ const Stats = () => {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm opacity-80 mb-1">Perfect 10s</p>
-                                <p className="text-3xl font-bold">{topRated.length}</p>
+                                <p className="text-3xl font-bold">{perfectTens.length}</p>
                             </div>
                             <div className="icon">
                                 <Award size={24} />
@@ -295,14 +316,14 @@ const Stats = () => {
                 </div>
 
                 {/* Top Rated Anime Section */}
-                {topRated.length > 0 && (
+                {perfectTens.length > 0 && (
                     <div className="card">
                         <div className="flex items-center gap-2 mb-4">
                             <Award className="text-yellow-400" size={24} />
                             <h2 className="text-2xl font-semibold">Your Perfect 10s</h2>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {topRated.map((anime, idx) => (
+                            {perfectTens.map((anime, idx) => (
                                 <div key={idx} className="bg-purple-900/50 border border-purple-500/30 rounded-lg p-4 hover:border-purple-500/60 transition-all">
                                     <div className="flex items-center gap-2">
                                         <div className="bg-gradient-to-r from-yellow-400 to-yellow-600 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">

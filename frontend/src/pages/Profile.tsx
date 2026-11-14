@@ -1,15 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { RefreshCw, Calendar, MapPin, Clock, User } from 'lucide-react';
 import Header from '../components/Header';
+import Footer from '../components/Footer';
+import LoadingScreen from '../components/LoadingScreen';
+import ErrorState from '../components/ErrorState';
+import { formatDate, LOAD_ERROR } from '../utils/format';
 import { API_URL } from '../config';
 import { authFetch } from '../utils/fetch';
 
 type Profile = {
-	name: string;
-	birthday: string;
-	location: string;
-	joined_at: string;
-	picture: string;
+	name: string | null;
+	birthday: string | null;
+	location: string | null;
+	joined_at: string | null;
+	picture: string | null;
 };
 
 const Profile = () => {
@@ -17,65 +21,65 @@ const Profile = () => {
 	const [loading, setLoading] = useState(true);
 	const [syncing, setSyncing] = useState(false);
 
-	// Fetch cached profile
-	const loadProfile = async () => {
-		const res = await authFetch(`${API_URL}/api/cached-profile/`);
-		if (res.ok) {
-			setProfile(await res.json());
-		}
-		setLoading(false);
-	};
+	const [error, setError] = useState('');
+	const [syncMessage, setSyncMessage] = useState('');
 
-	// Sync then reload
-	const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+	// Fetch cached profile
+	const loadProfile = useCallback(async () => {
+		setError('');
+		try {
+			const res = await authFetch(`${API_URL}/api/cached-profile/`);
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			setProfile(await res.json());
+		} catch {
+			setError(LOAD_ERROR);
+		} finally {
+			setLoading(false);
+		}
+	}, []);
 
 	const handleSync = async () => {
-		const minDuration = 500;     // ← tweak to taste
 		setSyncing(true);
-		const start = Date.now();
-
-		const res = await authFetch(`${API_URL}/api/sync-profile/`, { method: 'POST' });
-		if (res.ok) {
-			await loadProfile();
+		setSyncMessage('');
+		try {
+			const res = await authFetch(`${API_URL}/api/sync-profile/`, { method: 'POST' });
+			if (res.ok) {
+				await loadProfile();
+			} else {
+				setSyncMessage(res.status === 429
+					? 'You synced a lot just now. Wait a minute and try again.'
+					: 'Sync failed. MyAnimeList may be down; try again shortly.');
+			}
+		} catch {
+			setSyncMessage('Sync failed. Check your connection and try again.');
+		} finally {
+			setSyncing(false);
 		}
-
-		const elapsed = Date.now() - start;
-		if (elapsed < minDuration) {
-			await delay(minDuration - elapsed);
-		}
-		setSyncing(false);
 	};
 
 	useEffect(() => {
 		loadProfile();
-	}, []);
-
-	// Format date: MMM DD, YYYY
-	const formatDate = (dateString: string) => {
-		if (!dateString) return "Not set";
-
-		try {
-			const date = new Date(dateString);
-			const options: Intl.DateTimeFormatOptions = { 
-			month: 'short', 
-			day: 'numeric', 
-			year: 'numeric' 
-			};
-			return date.toLocaleDateString('en-US', options);
-		} catch {
-			return "Invalid date";
-		}
-	};
+	}, [loadProfile]);
 
 	if (loading) {
 		return (
-			<div className="overlay-center  bg-gray-900">
-			<div className="overlay-box">
-				<p className="text-xl">Loading profile...</p>
-			</div>
+			<div className="bg-gray-900">
+				<LoadingScreen message="Loading profile..." />
 			</div>
 		);
 	}
+
+	if (error) {
+		return (
+			<div className="min-h-screen bg-gray-900 text-white">
+				<Header />
+				<ErrorState message={error} onRetry={loadProfile} />
+			</div>
+		);
+	}
+
+	// First letter of the name, for the avatar when there is no picture
+	const initial = (profile?.name || '?').charAt(0).toUpperCase();
 
 	return (
 	<div className="min-h-screen bg-gray-900 text-white">
@@ -96,16 +100,20 @@ const Profile = () => {
 			{syncing ? 'Syncing...' : 'Sync Profile'}
 			</button>
 		</div>
+		{syncMessage && <p className="text-yellow-200 mb-4 text-right">{syncMessage}</p>}
 
 		{profile && (
 			<div className="bg-purple-800/30 backdrop-blur-sm border border-purple-500/80 rounded-xl p-6 transition-all">
 			<div className="grid gap-6">
 				<div className="flex justify-center mb-2">
-				<img 
-					src={profile.picture || "/api/placeholder/128/128"} 
-					alt={profile.name || "Profile"} 
-					className="w-32 h-32 rounded-full border-2 border-purple-500 object-cover" 
-				/>
+				{profile.picture ? (
+					<img src={profile.picture} alt={profile.name || 'Profile'} className="" />
+				) : (
+					// The old fallback pointed at an image path that does not exist
+					<div className="w-32 h-32 rounded-full border-2 border-purple-500 bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center text-5xl font-bold">
+						{initial}
+					</div>
+				)}
 				</div>
 				
 				<div className="grid gap-6">
@@ -125,7 +133,7 @@ const Profile = () => {
 					</div>
 					<div>
 					<p className="text-gray-400 text-sm">Birthday</p>
-					<p className="text-xl font-medium">{formatDate(profile.birthday)}</p>
+					<p className="text-xl font-medium">{formatDate(profile.birthday, 'Not set')}</p>
 					</div>
 				</div>
 				
@@ -145,7 +153,7 @@ const Profile = () => {
 					</div>
 					<div>
 					<p className="text-gray-400 text-sm">Joined</p>
-					<p className="text-xl font-medium">{formatDate(profile.joined_at)}</p>
+					<p className="text-xl font-medium">{formatDate(profile.joined_at, 'Not set')}</p>
 					</div>
 				</div>
 				</div>
@@ -153,6 +161,7 @@ const Profile = () => {
 			</div>
 		)}
 		</div>
+		<Footer />
 	</div>
 	);
 };

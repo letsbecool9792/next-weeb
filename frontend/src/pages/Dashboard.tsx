@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { RefreshCw, TrendingUp, BarChart2, Clock, Film, Star, ArrowRight, Play, Search } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import LoadingScreen from '../components/LoadingScreen';
+import ErrorState from '../components/ErrorState';
+import Poster from '../components/Poster';
+import { averageScore, LOAD_ERROR } from '../utils/format';
 import { API_URL } from '../config';
 import { authFetch } from '../utils/fetch';
 
@@ -19,7 +22,7 @@ type AnimeEntry = {
     status: string;
     score: number;
     episodes_watched: number;
-    last_updated: string;
+    last_updated: string | null;
 };
 
 type StatsData = {
@@ -37,47 +40,58 @@ const Dashboard = () => {
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
 
-    const loadData = async () => {
+    const [error, setError] = useState('');
+    const [syncMessage, setSyncMessage] = useState('');
+
+    const loadData = useCallback(async () => {
         setLoading(true);
-        
-        // Fetch profile
-        const profileRes = await authFetch(`${API_URL}/api/cached-profile/`);
-        if (profileRes.ok) {
+        setError('');
+        try {
+            // The three requests do not depend on each other, so run them together
+            const [profileRes, animeRes, statsRes] = await Promise.all([
+                authFetch(`${API_URL}/api/cached-profile/`),
+                authFetch(`${API_URL}/api/cached-animelist/`),
+                authFetch(`${API_URL}/api/stats-data/`),
+            ]);
+            if (!profileRes.ok || !animeRes.ok || !statsRes.ok) {
+                throw new Error('load failed');
+            }
             setProfile(await profileRes.json());
-        }
-
-        // Fetch anime list
-        const animeRes = await authFetch(`${API_URL}/api/cached-animelist/`);
-        if (animeRes.ok) {
             setAnimeList(await animeRes.json());
-        }
-
-        // Fetch stats data
-        const statsRes = await authFetch(`${API_URL}/api/stats-data/`);
-        if (statsRes.ok) {
             setStatsData(await statsRes.json());
+        } catch {
+            // Before, a failed request left the page on its loading spinner forever
+            setError(LOAD_ERROR);
+        } finally {
+            setLoading(false);
         }
-
-        setLoading(false);
-    };
+    }, []);
 
     const handleSync = async () => {
         setSyncing(true);
-        
-        // Sync profile
-        await authFetch(`${API_URL}/api/sync-profile/`, { method: 'POST' });
-
-        // Sync anime list
-        await authFetch(`${API_URL}/api/sync-animelist/`, { method: 'POST' });
-
-        // Reload all data
-        await loadData();
-        setSyncing(false);
+        setSyncMessage('');
+        try {
+            const [profileRes, listRes] = await Promise.all([
+                authFetch(`${API_URL}/api/sync-profile/`, { method: 'POST' }),
+                authFetch(`${API_URL}/api/sync-animelist/`, { method: 'POST' }),
+            ]);
+            if (listRes.status === 429 || profileRes.status === 429) {
+                setSyncMessage('You synced a lot just now. Wait a minute and try again.');
+            } else if (!listRes.ok || !profileRes.ok) {
+                setSyncMessage("Sync failed. MyAnimeList may be down; try again shortly.");
+            } else {
+                await loadData();
+            }
+        } catch {
+            setSyncMessage("Sync failed. Check your connection and try again.");
+        } finally {
+            setSyncing(false);
+        }
     };
 
     useEffect(() => {
         loadData();
-    }, []);
+    }, [loadData]);
 
     if (loading) {
         return (
@@ -87,11 +101,22 @@ const Dashboard = () => {
         );
     }
 
-    // Get currently watching anime
-    const watchingAnime = animeList
-        .filter(anime => anime.status === 'watching')
-        .sort((a, b) => new Date(b.last_updated).getTime() - new Date(a.last_updated).getTime())
-        .slice(0, 6);
+    if (error) {
+        return (
+            <div className="min-h-screen bg-gradient-to-b from-gray-900 to-fuchsia-950 text-white">
+                <Header />
+                <ErrorState message={error} onRetry={loadData} />
+            </div>
+        );
+    }
+
+    // Newest first. Copy before sorting: sort() reorders in place, and this is React state.
+    const updatedTime = (a: AnimeEntry) => (a.last_updated ? new Date(a.last_updated).getTime() : 0);
+    const byRecent = [...animeList].sort((a, b) => updatedTime(b) - updatedTime(a));
+
+    // All shows being watched (the count), and the six most recent (the row)
+    const watchingAll = byRecent.filter(anime => anime.status === 'watching');
+    const watchingAnime = watchingAll.slice(0, 6);
 
     // Calculate quick stats
     const totalCompleted = statsData.length;
@@ -102,9 +127,9 @@ const Dashboard = () => {
     }, 0);
     const totalDays = Math.floor(totalTimeMinutes / 60 / 24);
 
-    const avgScore = statsData.length > 0 
-        ? (statsData.reduce((sum, a) => sum + (a.score || 0), 0) / statsData.filter(a => a.score > 0).length).toFixed(1)
-        : 0;
+    // "–" when nothing is rated yet (this used to show NaN)
+    const average = averageScore(statsData.map(a => a.score));
+    const avgScore = average === null ? '–' : average.toFixed(1);
 
     // Top genres
     const genreMap = new Map<string, number>();
@@ -151,6 +176,7 @@ const Dashboard = () => {
                             <RefreshCw className={`w-5 h-5 ${syncing ? 'animate-spin' : ''}`} />
                             {syncing ? 'Syncing...' : 'Sync Now'}
                         </button>
+                        {syncMessage && <p className="text-sm text-yellow-200">{syncMessage}</p>}
                     </div>
                 </div>
 
@@ -196,7 +222,7 @@ const Dashboard = () => {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm opacity-80 mb-1">Watching</p>
-                                <p className="text-3xl font-bold">{watchingAnime.length}</p>
+                                <p className="text-3xl font-bold">{watchingAll.length}</p>
                             </div>
                             <div className="icon">
                                 <Play size={24} />
@@ -228,9 +254,9 @@ const Dashboard = () => {
                                         className="flex-shrink-0 w-40 group"
                                     >
                                         <div className="relative overflow-hidden rounded-lg border-2 border-purple-500/30 group-hover:border-purple-500 transition-all">
-                                            <img
+                                            <Poster
                                                 src={anime.image_url}
-                                                alt={anime.title}
+                                                title={anime.title}
                                                 className="w-full h-56 object-cover group-hover:scale-110 transition-transform duration-300"
                                             />
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
@@ -337,8 +363,7 @@ const Dashboard = () => {
                             Recently Updated
                         </h2>
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                            {animeList
-                                .sort((a, b) => new Date(b.last_updated).getTime() - new Date(a.last_updated).getTime())
+                            {byRecent
                                 .slice(0, 6)
                                 .map((anime) => (
                                     <Link
@@ -347,9 +372,9 @@ const Dashboard = () => {
                                         className="group"
                                     >
                                         <div className="relative overflow-hidden rounded-lg border-2 border-purple-500/30 group-hover:border-purple-500 transition-all">
-                                            <img
+                                            <Poster
                                                 src={anime.image_url}
-                                                alt={anime.title}
+                                                title={anime.title}
                                                 className="w-full h-44 object-cover group-hover:scale-110 transition-transform duration-300"
                                             />
                                             {anime.score > 0 && (

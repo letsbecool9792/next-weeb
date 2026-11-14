@@ -5,21 +5,27 @@ import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import LoadingScreen from '../components/LoadingScreen';
+import ErrorState from '../components/ErrorState';
+import Poster from '../components/Poster';
+import { formatDate, humanize, LOAD_ERROR } from '../utils/format';
 import { API_URL } from '../config';
 import { authFetch } from '../utils/fetch';
 
 type AnimeEntry = {
     mal_id: number;
     title: string;
-    image_url: string;
+    image_url: string | null;
     status: string;
-    score: number;
-    episodes_watched: number;
+    score: number | null;      // 0 or null when not rated
+    episodes_watched: number | null;
     is_rewatching: boolean;
-    start_date: string;
-    finish_date: string;
-    last_updated: string;
+    start_date: string | null;
+    finish_date: string | null;
+    last_updated: string | null;
 };
+
+/** Score badge text: unrated shows used to show "0" */
+const scoreLabel = (score: number | null) => (score ? String(score) : '–');
 
 const AnimeList = () => {
     const [animeList, setAnimeList] = useState<AnimeEntry[]>([]);
@@ -30,35 +36,42 @@ const AnimeList = () => {
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
+    const [error, setError] = useState('');
+    const [syncMessage, setSyncMessage] = useState('');
+
     // Anime list loader
     const loadAnime = useCallback(async () => {
-        const res = await authFetch(`${API_URL}/api/cached-animelist/`);
-        if (res.ok) {
-            const data: AnimeEntry[] = await res.json();
-            setAnimeList(data);
+        setError('');
+        try {
+            const res = await authFetch(`${API_URL}/api/cached-animelist/`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            setAnimeList(await res.json());
+        } catch {
+            setError(LOAD_ERROR);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     }, []);
 
-    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
     const handleSync = async () => {
-        const minDuration = 500;     // ← tweak to taste
         setSyncing(true);
-        const start = Date.now();
-      
-        const res = await authFetch(`${API_URL}/api/sync-animelist/`, { method: 'POST' });
-        if (res.ok) {
-          await loadAnime();
+        setSyncMessage('');
+        try {
+            const res = await authFetch(`${API_URL}/api/sync-animelist/`, { method: 'POST' });
+            if (res.ok) {
+                await loadAnime();
+            } else {
+                setSyncMessage(res.status === 429
+                    ? 'You synced a lot just now. Wait a minute and try again.'
+                    : 'Sync failed. MyAnimeList may be down; try again shortly.');
+            }
+        } catch {
+            setSyncMessage('Sync failed. Check your connection and try again.');
+        } finally {
+            setSyncing(false);
         }
-      
-        const elapsed = Date.now() - start;
-        if (elapsed < minDuration) {
-            await delay(minDuration - elapsed);
-        }
-        setSyncing(false);
     };
-    
+
     // Load the list once. The backend runs the first sync itself when needed.
     useEffect(() => {
         loadAnime();
@@ -75,9 +88,12 @@ const AnimeList = () => {
 
         // Apply sorting
         return filtered.sort((a, b) => {
-            if (sortBy === 'score') return b.score - a.score;
-            if (sortBy === 'recently_updated') return new Date(b.last_updated).getTime() - new Date(a.last_updated).getTime();
-            if (sortBy === 'episodes') return b.episodes_watched - a.episodes_watched;
+            if (sortBy === 'score') return (b.score ?? 0) - (a.score ?? 0);
+            if (sortBy === 'recently_updated') {
+                const time = (x: AnimeEntry) => (x.last_updated ? new Date(x.last_updated).getTime() : 0);
+                return time(b) - time(a);
+            }
+            if (sortBy === 'episodes') return (b.episodes_watched ?? 0) - (a.episodes_watched ?? 0);
             return a.title.localeCompare(b.title); // Default: sort by title
         });
     };
@@ -94,7 +110,18 @@ const AnimeList = () => {
         }
     };
 
+    const visibleList = getFilteredAndSortedList();
+
     // Loading and error states
+    if (error) {
+        return (
+            <div className="min-h-screen bg-gray-900 text-white">
+                <Header />
+                <ErrorState message={error} onRetry={loadAnime} />
+            </div>
+        );
+    }
+
 
     if (loading) {
         return (
@@ -219,41 +246,46 @@ const AnimeList = () => {
                     </div>
                 )}
 
+                {syncMessage && <p className="text-yellow-200 mb-6">{syncMessage}</p>}
+
                 {!animeList.length ? (
                     <div className="text-center py-16 bg-purple-800/40 backdrop-blur-sm border border-purple-500/50 rounded-xl">
-                        <div className="bg-gradient-to-r from-pink-500 to-purple-500 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl">
-                            🔍
-                        </div>
                         <h2 className="text-2xl font-bold mb-2">Your collection is empty</h2>
-                        <p className="text-purple-300 mb-6">Sync your library or add some anime to get started</p>
+                        <p className="text-purple-300 mb-6">Add some anime on MyAnimeList, then sync.</p>
                         <button
                             onClick={handleSync}
-                            className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white px-8 py-3 rounded-full shadow-lg shadow-purple-500/30"
+                            disabled={syncing}
+                            className="btn-primary mx-auto"
                         >
-                            Sync Now
+                            {syncing ? 'Syncing...' : 'Sync with MyAnimeList'}
                         </button>
+                    </div>
+                ) : visibleList.length === 0 ? (
+                    <div className="text-center py-16 text-purple-200">
+                        No shows with the status "{humanize(filterStatus)}".{' '}
+                        <button onClick={() => setFilterStatus('all')} className="underline hover:text-white">Show all</button>
                     </div>
                 ) : viewMode === 'grid' ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {getFilteredAndSortedList().map((anime) => (
+                        {visibleList.map((anime) => (
                             <Link
                                 key={anime.mal_id}
                                 to={`/anime/${anime.mal_id}`} 
                                 className="block"
                             >
-                                <div key={anime.title} className="relative bg-purple-800/80 hover:bg-purple-800/30 backdrop-blur-sm border border-purple-500/80 rounded-xl overflow-hidden group transition-all hover:scale-105 duration-200">
+                                <div className="relative bg-purple-800/80 hover:bg-purple-800/30 backdrop-blur-sm border border-purple-500/80 rounded-xl overflow-hidden group transition-all hover:scale-105 duration-200">
                                     <div className="relative">
                                         <div className="aspect-w-3 aspect-h-4">
-                                            <img 
-                                                src={anime.image_url} 
-                                                alt={anime.title} 
+                                            <Poster
+                                                src={anime.image_url}
+                                                title={anime.title}
                                                 className="w-full h-64 object-cover"
                                             />
                                         </div>
                                         <div className="absolute inset-0 bg-gradient-to-t from-purple-900 via-transparent to-transparent"></div>
                                         
                                         <div className={`absolute top-3 right-3 ${getStatusColor(anime.status)} text-white rounded-full px-3 py-1 text-xs font-medium`}>
-                                            {anime.status.replace(/_/g, ' ')}
+                                            {humanize(anime.status)}
                                         </div>
                                         
                                         {anime.is_rewatching && (
@@ -263,7 +295,7 @@ const AnimeList = () => {
                                         )}
                                         
                                         <div className="absolute bottom-3 right-3 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold rounded-full w-10 h-10 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                                            {anime.score}
+                                            {scoreLabel(anime.score)}
                                         </div>
                                     </div>
                                     
@@ -273,16 +305,16 @@ const AnimeList = () => {
                                         <div className="grid grid-cols-2 gap-2 text-sm text-purple-200">
                                             <div className="flex items-center">
                                                 <Eye className="h-4 w-4 mr-1 text-pink-400" />
-                                                {anime.episodes_watched} episodes
+                                                {anime.episodes_watched ?? 0} episodes
                                             </div>
                                             <div className="flex items-center">
                                                 <Calendar className="h-4 w-4 mr-1 text-pink-400" />
-                                                {anime.start_date || 'N/A'}
+                                                {formatDate(anime.start_date)}
                                             </div>
                                         </div>
                                         
                                         <div className="mt-3 pt-3 border-t border-purple-700/50 text-xs text-purple-300 flex justify-between items-center">
-                                            <span>Updated: {new Date(anime.last_updated).toLocaleDateString()}</span>
+                                            <span>Updated: {formatDate(anime.last_updated)}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -291,13 +323,13 @@ const AnimeList = () => {
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        {getFilteredAndSortedList().map((anime) => (
-                            <div key={anime.title} className="relative bg-purple-800/80 hover:bg-purple-800/30 backdrop-blur-sm border border-purple-500/80 rounded-xl overflow-hidden group transition-all hover:translate-x-1 duration-200">
+                        {visibleList.map((anime) => (
+                            <Link key={anime.mal_id} to={`/anime/${anime.mal_id}`} className="block relative bg-purple-800/80 hover:bg-purple-800/30 backdrop-blur-sm border border-purple-500/80 rounded-xl overflow-hidden group transition-all hover:translate-x-1 duration-200">
                                 <div className="flex">
                                     <div className="w-32 sm:w-48">
-                                        <img 
-                                            src={anime.image_url} 
-                                            alt={anime.title} 
+                                        <Poster
+                                            src={anime.image_url}
+                                            title={anime.title}
                                             className="h-full w-full object-cover"
                                         />
                                     </div>
@@ -306,7 +338,7 @@ const AnimeList = () => {
                                             <h3 className="text-lg sm:text-xl font-bold mb-2 text-white">{anime.title}</h3>
                                             <div className="flex space-x-2">
                                                 <div className={`${getStatusColor(anime.status)} text-white rounded-full px-3 py-1 text-xs font-medium h-fit`}>
-                                                    {anime.status.replace(/_/g, ' ')}
+                                                    {humanize(anime.status)}
                                                 </div>
                                                 {anime.is_rewatching && (
                                                     <div className="bg-gradient-to-r from-pink-500 to-purple-500 rounded-full px-3 py-1 text-xs font-medium h-fit">
@@ -319,53 +351,34 @@ const AnimeList = () => {
                                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 text-sm text-purple-200">
                                             <div className="flex items-center">
                                                 <Star className="h-4 w-4 mr-1 text-pink-400" />
-                                                Score: {anime.score}
+                                                Score: {scoreLabel(anime.score)}
                                             </div>
                                             <div className="flex items-center">
                                                 <Eye className="h-4 w-4 mr-1 text-pink-400" />
-                                                {anime.episodes_watched} episodes
+                                                {anime.episodes_watched ?? 0} episodes
                                             </div>
                                             <div className="flex items-center">
                                                 <Calendar className="h-4 w-4 mr-1 text-pink-400" />
-                                                Started: {anime.start_date || 'N/A'}
+                                                Started: {formatDate(anime.start_date)}
                                             </div>
                                             <div className="flex items-center">
                                                 <Clock className="h-4 w-4 mr-1 text-pink-400" />
-                                                Updated: {new Date(anime.last_updated).toLocaleDateString()}
+                                                Updated: {formatDate(anime.last_updated)}
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </Link>
                         ))}
                     </div>
                 )}
                 
             </div>
             
-            {/* Empty State */}
-            {animeList.length === 0 && !loading && (
-                <div className="container mx-auto px-4 pb-12">
-                    <div className="text-center py-16 bg-purple-800/40 backdrop-blur-sm border border-purple-500/50 rounded-xl">
-                        <div className="bg-gradient-to-r from-pink-500 to-purple-500 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl">
-                            🎬
-                        </div>
-                        <h2 className="text-2xl font-bold mb-2">No anime in your collection</h2>
-                        <p className="text-purple-300 mb-6">Let's start building your anime journey</p>
-                        <button
-                            onClick={handleSync}
-                            disabled={syncing}
-                            className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white px-8 py-3 rounded-full shadow-lg shadow-purple-500/30 disabled:opacity-50"
-                        >
-                            {syncing ? 'Syncing...' : 'Sync with MyAnimeList'}
-                        </button>
-                    </div>
-                </div>
-            )}
-            
             {/* Back to Top Button (appears when scrolling) */}
             <button 
                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                aria-label="Back to top"
                 className="icon bottom-6 right-8 fixed hover:from-pink-600 hover:to-purple-600"
                 id="back-to-top"
             >
