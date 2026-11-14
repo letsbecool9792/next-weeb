@@ -19,14 +19,9 @@ from django.conf import settings
 from django.shortcuts import redirect
 from django.http import JsonResponse, HttpResponse
 
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
-from django.contrib.auth import login
-from django.contrib.auth import logout
 
 from django.views.decorators.csrf import csrf_exempt
-
-from django.shortcuts import redirect
 
 from .models import AnimeEntry
 from .models import UserProfile
@@ -118,41 +113,6 @@ def health_check(request):
         "message": "Server is running"
     }, status=200)
 
-# Debug endpoint to check configuration
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def debug_config(request):
-    """Debug endpoint to check OAuth and session configuration"""
-    from django.contrib.auth.models import User
-    
-    return Response({
-        "mal_client_id": CLIENT_ID[:10] + "..." if CLIENT_ID else "MISSING",
-        "mal_redirect_uri": REDIRECT_URI,
-        "frontend_url": FRONTEND_URL,
-        "session_engine": settings.SESSION_ENGINE,
-        "session_cookie_samesite": settings.SESSION_COOKIE_SAMESITE,
-        "session_cookie_secure": settings.SESSION_COOKIE_SECURE,
-        "session_cookie_domain": settings.SESSION_COOKIE_DOMAIN,
-        "session_cookie_httponly": settings.SESSION_COOKIE_HTTPONLY,
-        "debug_mode": settings.DEBUG,
-        "allowed_hosts": settings.ALLOWED_HOSTS,
-        "cors_origins": settings.CORS_ALLOWED_ORIGINS,
-        
-        # Database diagnostics
-        "total_users": User.objects.count(),
-        "users_with_profiles": UserProfile.objects.count(),
-        "users": list(User.objects.values('id', 'username', 'is_active')[:10]),
-    })
-
-# CSRF token endpoint for cross-origin requests
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def get_csrf_token(request):
-    from django.middleware.csrf import get_token
-    return Response({
-        "csrfToken": get_token(request)
-    })
-
 # OAuth URLs
 MAL_AUTH_URL = "https://myanimelist.net/v1/oauth2/authorize"
 MAL_TOKEN_URL = "https://myanimelist.net/v1/oauth2/token"
@@ -181,9 +141,6 @@ def mal_login(request):
     code_verifier = generate_code_verifier()
     code_challenge = generate_code_challenge(code_verifier)
 
-    logger.info(f"[mal_login] Generated code_verifier: {code_verifier}")
-    logger.info(f"[mal_login] Generated code_challenge: {code_challenge}")
-
     # Encode verifier in state parameter to get it back in callback
     import urllib.parse
     state = urllib.parse.quote(code_verifier)
@@ -204,8 +161,6 @@ def mal_callback(request):
     Handles the OAuth callback from MyAnimeList.
     Passes code and verifier to frontend via URL (no session).
     """
-    logger.info(f"[mal_callback] START - Full request GET params: {request.GET}")
-    
     # Check for OAuth errors (user denied)
     error = request.GET.get("error")
     if error:
@@ -215,24 +170,18 @@ def mal_callback(request):
     
     code = request.GET.get("code")
     code_verifier = request.GET.get("state")  # Get verifier from state param
-    
-    logger.info(f"[mal_callback] Authorization code received: {code[:20] if code else None}...")
-    logger.info(f"[mal_callback] Code verifier from state: {code_verifier[:20] if code_verifier else None}...")
 
     if not code:
-        logger.error(f"[mal_callback] No code in callback, GET params: {request.GET}")
+        logger.error(f"[mal_callback] No code in callback")
         return redirect(f"{FRONTEND_URL}/get-started?error=no_code")
 
     if not code_verifier:
         logger.error(f"[mal_callback] Missing code_verifier in state param")
         return redirect(f"{FRONTEND_URL}/get-started?error=missing_verifier")
 
-    logger.info(f"[mal_callback] Passing OAuth code and verifier to frontend via URL")
-    
     # Redirect to frontend callback page with code and verifier
     import urllib.parse
     redirect_url = f"{FRONTEND_URL}/auth/callback?code={urllib.parse.quote(code)}&verifier={urllib.parse.quote(code_verifier)}"
-    logger.info(f"[mal_callback] SUCCESS - Redirecting to: {redirect_url[:100]}...")
     return redirect(redirect_url)
 
 @api_view(['POST'])
@@ -250,10 +199,7 @@ def exchange_oauth_token(request):
     # Get OAuth code and verifier from request body only
     oauth_code = request.data.get("code")
     code_verifier = request.data.get("verifier")
-    
-    logger.info(f"[exchange_oauth_token] OAuth code from request: {oauth_code[:20] if oauth_code else None}...")
-    logger.info(f"[exchange_oauth_token] Code verifier from request: {code_verifier[:20] if code_verifier else None}...")
-    
+
     if not oauth_code or not code_verifier:
         logger.error(f"[exchange_oauth_token] Missing OAuth code or verifier")
         return Response({"error": "No OAuth session found. Please log in again."}, status=400)
@@ -441,8 +387,6 @@ def cached_mal_profile(request):
     
     try:
         prof = request.user.userprofile
-        logger.info(f"[cached_mal_profile] Has MAL token: {bool(prof.mal_access_token)}")
-        logger.info(f"[cached_mal_profile] Profile data: name={prof.name}, picture={prof.picture}")
         return Response({
             "name": prof.name,
             "birthday": prof.birthday,
@@ -541,31 +485,6 @@ def get_cached_anime_list(request):
             logger.warning(f"[get_cached_anime_list] 0 entries - Profile missing for user {request.user.username}")
     
     return JsonResponse(list(entries), safe=False)
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def session_status(request):
-    """
-    Check if user is authenticated via JWT.
-    This endpoint allows anonymous access but returns auth status.
-    """
-    is_authenticated = request.user.is_authenticated
-    logger.info(f"[session_status] Auth check: {is_authenticated}, User: {request.user.username if is_authenticated else 'Anonymous'}")
-    
-    return Response({
-        "is_authenticated": is_authenticated,
-        "username": request.user.username if is_authenticated else None,
-    })
-
-#@csrf_exempt
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def mal_logout(request):
-    logger.info(f"[mal_logout] User logging out: {request.user.username}")
-    # With JWT, frontend just deletes the token
-    # No server-side session to clear
-    return JsonResponse({"message": "Logout successful"})
-
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
