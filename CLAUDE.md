@@ -84,8 +84,19 @@ Status per step: **[x] done** · local = owner tested locally · render = owner 
 - [x] **13. UI bugs.** Error state with retry on every data page (dashboard used to spin forever); NaN averages; capped "Watching" and "Perfect 10s" counts; dead "Return to List"; detail page crash on missing MAL fields; broken profile avatar; duplicate empty states; unclickable list rows; "Invalid Date"; search is one request (was seven) and reports errors and short queries. Shared `Poster`, `ErrorState`, `utils/format.ts`. *local pending · render pending*
 - [x] **14. Docs and honesty.** README rewritten; landing and login copy only claims features that exist (no "read-only access" claim: MAL has no such scope); tracked `backend/.env.example` and `frontend/.env.example`; `.vscode/launch.json` points at `backend/manage.py` on port 8000; Vite template README removed. *local pending · render pending*
 
-### UI overhaul (next)
-- [ ] **15. Visual redesign** of the landing page and every app page. Keep the current colour palette (purple/pink/fuchsia gradients on dark). Direction to be agreed with the owner first.
+### UI overhaul
+- [x] **15. Visual redesign.** Every page rebuilt in a streaming-service style. Backend support: `image_large` on catalog and list entries, public `/api/showcase/` (covers for the poster wall), `mal_id`/`image` in stats-data. Pages load lazily (first download 357 kB → 182 kB gzipped). New favicon. *local pending · render pending*
+
+## Design system (agreed with the owner, Nov 2026)
+
+- **Look:** streaming service (Crunchyroll/Netflix): blurred cover-art banners, horizontal poster rows, art does the talking.
+- **Colours:** keep the original palette: dark ink background (`--color-ink`), purple/pink/fuchsia gradients. Do not introduce new brand colours.
+- **Font:** Space Grotesk (self-hosted via `@fontsource-variable/space-grotesk`).
+- **Navigation:** top bar (transparent over banners, frosted on scroll) with an always-present search box (`/` or Ctrl+K). Dashboard ("Home") and Recommendations ("Discover") stay separate pages.
+- **Landing:** tilted, drifting wall of real anime covers behind the headline.
+- **Motion:** lots (the owner's choice), via `motion` (`motion/react`). Page transitions, staggered card entrances, parallax banners, count-ups, hover lifts. `MotionConfig reducedMotion="user"` and a CSS media query honour the OS "reduce motion" setting.
+
+Frontend building blocks (`frontend/src/components/`): `AppShell` (header, page transition, footer: wrap every logged-in page in it), `ui/HeroBanner`, `ui/Row`, `ui/PosterCard`, `ui/PosterWall`, `ui/PageHeader`, `ui/Skeleton`, `ui/CountUp`, `ui/ScoreRing`, `ui/Reveal`, `SearchBox`, `ChatPanel`, `Poster` (image with fallback), `ErrorState`. Shared types in `src/types.ts`, helpers in `src/utils/format.ts`. CSS component classes (`card`, `btn-primary`, `btn-secondary`, `chip`, `input`, `select-field`, `skeleton`, `text-gradient`) live in `src/index.css`; Tailwind v4 cannot `@apply` one of these inside another.
 
 Out of scope for now: writing changes back to MAL (list management).
 
