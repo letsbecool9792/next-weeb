@@ -1,148 +1,204 @@
-"""The AI chat on the recommendations page (Google Gemini)."""
+"""
+The AI chat on the recommendations page (Google Gemini).
+
+The old chat sent Gemini ten titles the browser picked and one message, and
+got back free text. Gemini could suggest anything, including shows the user
+had already seen, and nothing in the answer was clickable.
+
+Now the server builds the context itself from the database:
+  - the user's taste: favourite shows with their scores, dropped shows,
+    distinctive genres and studios;
+  - a list of CANDIDATES: about 200 shows the user has not seen (the best
+    personal matches from the recommender, plus the best-rated of the rest)
+    and their own Plan to Watch.
+Gemini must answer in JSON: a short reply, plus picks given as candidate ids.
+Ids not on the list are dropped, so every suggested card is a real,
+unwatched show that links to its detail page.
+
+The conversation is multi-turn: the browser sends the recent history, and
+Gemini sees it as an ordinary back-and-forth.
+"""
+import logging
 import os
 
 from google import genai
-from google.genai import types
+from google.genai import errors, types
+from pydantic import BaseModel
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from ..models import Anime, AnimeEntry
 from ..throttles import AiChatThrottle
+from .recommendations import get_cached_recommendations
+
+logger = logging.getLogger(__name__)
+
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+gemini_client = (
+    genai.Client(api_key=GEMINI_API_KEY, http_options=types.HttpOptions(timeout=30_000))
+    if GEMINI_API_KEY else None
+)
+
+MAX_TURNS = 12            # most recent messages sent to Gemini
+MAX_MESSAGE_CHARS = 1000  # longer messages are cut
+MAX_PICKS = 6
 
 
-# Configure Gemini using new SDK
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
-gemini_client = None
-if GEMINI_API_KEY:
-    gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+class ChatPick(BaseModel):
+    id: int
+    why: str
+
+
+class ChatReply(BaseModel):
+    """The JSON shape Gemini must answer in."""
+    reply: str
+    picks: list[ChatPick]
+
+
+def clean_history(raw):
+    """Keep well-formed {role, content} messages, the last MAX_TURNS of them."""
+    messages = []
+    for item in raw if isinstance(raw, list) else []:
+        if not isinstance(item, dict):
+            continue
+        role, content = item.get("role"), item.get("content")
+        if role in ("user", "assistant") and isinstance(content, str) and content.strip():
+            messages.append({"role": role, "content": content.strip()[:MAX_MESSAGE_CHARS]})
+    return messages[-MAX_TURNS:]
+
+
+def describe(show, note=""):
+    """One candidate line for the prompt."""
+    parts = [
+        str(show["id"]),
+        show["title"],
+        f"{show['media_type'].upper()} {show['episodes'] or '?'} eps" if show["media_type"] else "",
+        str(show["year"]) if show.get("year") else "",
+        ", ".join(show["genres"][:5]),
+        ", ".join(show.get("studios", [])[:2]),
+        f"MAL {show['mean']:.2f}" if show["mean"] else "",
+        note,
+    ]
+    return " | ".join(p for p in parts if p)
+
+
+def build_context(user):
+    """The system prompt and the candidates Gemini may pick from, keyed by id."""
+    recs = get_cached_recommendations(user)
+    candidates, lines = {}, []
+
+    for a in Anime.objects.in_bulk(recs.get("_pool", [])).values():
+        candidates[a.mal_id] = {
+            "id": a.mal_id, "title": a.title, "image": a.image_url, "mean": a.mean,
+            "media_type": a.media_type, "episodes": a.num_episodes, "year": a.start_year, "genres": a.genres,
+            "studios": a.studios,
+        }
+        lines.append(describe(candidates[a.mal_id]))
+
+    entries = AnimeEntry.objects.filter(user=user)
+    for e in entries.filter(status="plan_to_watch"):
+        candidates[e.mal_id] = {
+            "id": e.mal_id, "title": e.title, "image": e.image_url, "mean": e.mean,
+            "media_type": e.media_type, "episodes": e.num_episodes, "genres": e.genres,
+            "studios": e.studios,
+        }
+        lines.append(describe(candidates[e.mal_id], "already on their Plan to Watch"))
+
+    favourites = [f"{e.title} ({e.score}/10)" for e in entries.filter(score__gte=8).order_by("-score", "-last_updated")[:25]]
+    dropped = [e.title for e in entries.filter(status="dropped")[:15]]
+    taste = recs.get("taste", {})
+
+    system = f"""You are the recommendation assistant inside NextWeeb, an app built on the user's MyAnimeList account.
+
+ABOUT THE USER
+Favourite shows: {'; '.join(favourites) or 'none rated highly yet'}
+Dropped: {'; '.join(dropped) or 'none'}
+Distinctive genres: {', '.join(taste.get('top_genres', [])) or 'unknown'}
+Favourite studios: {', '.join(taste.get('top_studios', [])) or 'unknown'}
+
+CANDIDATES (format: id | title | type and episodes | year | genres | studios | MAL score | note)
+None of these are on the user's list yet, except those marked as on their Plan to Watch.
+{chr(10).join(lines)}
+
+RULES
+- Answer in 2-4 short sentences in "reply". Be direct and specific; no filler.
+- Put the shows you suggest in "picks", up to {MAX_PICKS}, using ids from CANDIDATES only. Never invent an id.
+- Each pick's "why" is one short sentence tying it to what the user asked or to their favourites.
+- If nothing in CANDIDATES fits, say so in "reply" and return an empty "picks".
+- If the user asks something that is not about anime, briefly steer back and return an empty "picks".
+"""
+    return system, candidates
+
+
+def gemini_error_message(error):
+    if isinstance(error, errors.APIError):
+        if error.code == 429:
+            return "The AI is getting too many requests right now. Wait a minute and try again."
+        if error.code in (401, 403):
+            return "The AI service is misconfigured on our side. Please try again later."
+        if error.code >= 500:
+            return "The AI service is overloaded right now. Try again in a few minutes."
+        return "The AI couldn't process that message. Try rephrasing it."
+    return "The AI took too long to answer. Please try again."
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 @throttle_classes([AiChatThrottle])
 def ai_recommendation_chat(request):
     """
-    AI chatbot for recommendations - enhances algorithm results with natural language
+    POST {"messages": [{"role": "user"|"assistant", "content": "..."}, ...]}
+    -> {"message": "...", "picks": [{"id", "title", "image", "score", "reason"}]}
     """
-    print(f"[AI Chat] Request received from user: {request.user.username}")
-    
-    if not GEMINI_API_KEY:
-        print("[AI Chat] ERROR: No Gemini API key configured")
-        return Response({"error": "AI service not configured"}, status=503)
-    
-    user_message = request.data.get("message", "")
-    user_anime_context = request.data.get("context", [])
-    algorithm_suggestions = request.data.get("suggestions", [])
-    
-    print(f"[AI Chat] User message: {user_message[:50]}...")
-    
-    if not user_message:
+    messages = clean_history(request.data.get("messages"))
+    if not messages or messages[-1]["role"] != "user":
         return Response({"error": "Message is required"}, status=400)
-    
-    # Build context prompt
-    watched_titles = [anime.get("title", "") for anime in user_anime_context[:10]]
-    suggested_titles = [anime.get("title", "") for anime in algorithm_suggestions[:10]]
-    
-    prompt = f"""You are a concise anime recommendation assistant.
+    if gemini_client is None:
+        return Response({"error": "The AI chat is not configured on this server."}, status=503)
 
-User has watched and enjoyed: {', '.join(watched_titles)}
+    system, candidates = build_context(request.user)
+    contents = [
+        types.Content(role="user" if m["role"] == "user" else "model", parts=[types.Part(text=m["content"])])
+        for m in messages
+    ]
 
-User asks: "{user_message}"
-
-Respond in 2-3 short sentences. Be direct and helpful."""
-    
-    # Debug: Log prompt details
-    print(f"[AI Chat] Watched titles count: {len(watched_titles)}")
-    print(f"[AI Chat] Total prompt length: {len(prompt)} chars")
-    
     try:
-        print("[AI Chat] Calling Gemini API...")
-        import time
-        start_time = time.time()
-        
-        # Configure safety settings using new SDK
-        config = types.GenerateContentConfig(
-            temperature=0.7,
-            max_output_tokens=2000,
-            safety_settings=[
-                types.SafetySetting(
-                    category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
-                    threshold=types.HarmBlockThreshold.BLOCK_NONE,
-                ),
-                types.SafetySetting(
-                    category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-                    threshold=types.HarmBlockThreshold.BLOCK_NONE,
-                ),
-                types.SafetySetting(
-                    category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-                    threshold=types.HarmBlockThreshold.BLOCK_NONE,
-                ),
-                types.SafetySetting(
-                    category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-                    threshold=types.HarmBlockThreshold.BLOCK_NONE,
-                ),
-            ]
-        )
-        
         response = gemini_client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt,
-            config=config
+            model=GEMINI_MODEL,
+            contents=contents,
+            config=types.GenerateContentConfig(
+                system_instruction=system,
+                temperature=0.7,
+                max_output_tokens=1500,
+                response_mime_type="application/json",
+                response_schema=ChatReply,
+                # No hidden "thinking" step: faster, and it cannot eat the output budget
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
+            ),
         )
-        
-        elapsed = time.time() - start_time
-        print(f"[AI Chat] Gemini responded in {elapsed:.2f}s")
-        
-        # Check if response has text
-        if not response.text:
-            print("[AI Chat] Response blocked or empty.")
-            if response.candidates and len(response.candidates) > 0:
-                finish_reason = response.candidates[0].finish_reason
-                print(f"[AI Chat] Finish reason: {finish_reason}")
-                
-                if finish_reason == 'MAX_TOKENS':
-                    return Response({
-                        "message": "Response got cut off (too long). Try asking a shorter question.",
-                        "suggestions": suggested_titles
-                    })
-                elif finish_reason == 'SAFETY':
-                    return Response({
-                        "message": "Content was filtered by safety settings. Try rephrasing your question.",
-                        "suggestions": suggested_titles
-                    })
-            
-            return Response({
-                "message": "Couldn't generate a response. Try asking differently.",
-                "suggestions": suggested_titles
+    except Exception as e:  # network errors, timeouts and API errors alike
+        logger.error(f"[chat] Gemini call failed: {type(e).__name__}: {e}")
+        return Response({"message": gemini_error_message(e), "picks": []})
+
+    answer = response.parsed if isinstance(response.parsed, ChatReply) else None
+    if answer is None:
+        finish = response.candidates[0].finish_reason if response.candidates else None
+        logger.warning(f"[chat] Unusable Gemini answer, finish reason: {finish}")
+        return Response({"message": "I couldn't come up with an answer to that. Try asking differently.", "picks": []})
+
+    picks, seen = [], set()
+    for pick in answer.picks:
+        show = candidates.get(pick.id)
+        if show and pick.id not in seen:  # ids Gemini made up are dropped here
+            seen.add(pick.id)
+            picks.append({
+                "id": show["id"],
+                "title": show["title"],
+                "image": show["image"],
+                "score": show["mean"],
+                "reason": pick.why,
             })
-        
-        print(f"[AI Chat] Response length: {len(response.text)} chars")
-        
-        return Response({
-            "message": response.text,
-            "suggestions": suggested_titles
-        })
-    except Exception as e:
-        print(f"[AI Chat] ERROR: {type(e).__name__}: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        
-        # Parse error and give user-friendly messages
-        error_str = str(e).lower()
-        
-        if '503' in error_str or 'overloaded' in error_str or 'unavailable' in error_str:
-            error_message = "Gemini is lowkey overloaded right now. Try again in a few minutes."
-        elif '429' in error_str or 'rate limit' in error_str or 'quota' in error_str:
-            error_message = "Hit the rate limit! We're sending too many requests. Wait a minute and try again."
-        elif '401' in error_str or 'unauthorized' in error_str or 'api key' in error_str:
-            error_message = "API key issue. Something's wrong on our end. Contact support."
-        elif '400' in error_str or 'invalid' in error_str:
-            error_message = "Your message couldn't be processed. Try rephrasing?"
-        elif 'timeout' in error_str or 'timed out' in error_str:
-            error_message = "Request timed out. Gemini's taking too long. Try again."
-        else:
-            error_message = f"AI ran into an issue: {type(e).__name__}. Try again or rephrase your question."
-        
-        return Response({
-            "message": error_message,
-            "suggestions": suggested_titles
-        })
+
+    return Response({"message": answer.reply, "picks": picks[:MAX_PICKS]})

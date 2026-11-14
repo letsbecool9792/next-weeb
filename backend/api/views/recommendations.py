@@ -18,7 +18,7 @@ def cache_key(user):
     """
     profile = UserProfile.objects.filter(user=user).only("last_synced_at").first()
     synced = profile.last_synced_at.timestamp() if profile and profile.last_synced_at else 0
-    return f"recs:v2:{user.id}:{synced:.0f}"
+    return f"recs:v3:{user.id}:{synced:.0f}"
 
 
 def get_cached_recommendations(user, regenerate=False):
@@ -39,4 +39,6 @@ def get_cached_recommendations(user, regenerate=False):
 def get_recommendations(request):
     """GET /api/recommendations/  (add ?regenerate=1 for a reshuffled page)"""
     regenerate = request.GET.get("regenerate") == "1"
-    return Response(get_cached_recommendations(request.user, regenerate))
+    data = get_cached_recommendations(request.user, regenerate)
+    # Keys starting with "_" are for the server only (the chat's candidate pool)
+    return Response({k: v for k, v in data.items() if not k.startswith("_")})

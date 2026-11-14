@@ -396,6 +396,13 @@ def build_recommendations(user, regenerate=False):
         for e in ptw
     ]
 
+    # Shows the AI chat may suggest: the best personal matches, plus the
+    # best-rated of the rest so it can answer requests outside the user's
+    # usual taste. Internal: the view strips keys starting with "_".
+    personal = ranked[:120]
+    broad = sorted(ranked[120:], key=lambda a: a.mean or 0, reverse=True)[:80]
+    result["_pool"] = [a.mal_id for a in personal + broad]
+
     result["taste"] = {
         "top_genres": taste.top_genres(5),
         "top_studios": taste.top_studios(3),
