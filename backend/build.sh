@@ -10,3 +10,6 @@ python manage.py createcachetable
 
 # Delete blacklist rows for refresh tokens that have expired anyway
 python manage.py flushexpiredtokens
+
+# Download MAL's most popular shows for recommendations (never fails the build)
+python manage.py refresh_catalog

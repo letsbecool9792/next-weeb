@@ -171,6 +171,32 @@ def get_with_token(access_token, path, params=None):
         raise MalUnavailable()
 
 
+def public_get(path, params=None):
+    """
+    GET a public MAL API path with only our app's client ID, no user involved.
+    Used for data that is the same for everyone, such as rankings and show
+    details, so it works even when no user is logged in.
+    """
+    url = path if path.startswith("http") else f"{MAL_API_URL}{path}"
+    try:
+        response = requests.get(
+            url,
+            headers={"X-MAL-CLIENT-ID": settings.MAL_CLIENT_ID},
+            params=params,
+            timeout=TIMEOUT,
+        )
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[mal] public GET {path} failed: {e}")
+        raise MalUnavailable()
+
+    if response.status_code == 404:
+        raise MalNotFound()
+    if response.status_code != 200:
+        logger.error(f"[mal] public GET {path} -> {response.status_code}: {response.text[:300]}")
+        raise MalUnavailable()
+    return response.json()
+
+
 def mal_get(user, path, params=None):
     """
     GET a MAL API path on behalf of a user and return the parsed JSON.
