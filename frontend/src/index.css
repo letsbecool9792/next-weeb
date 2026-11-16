@@ -216,10 +216,14 @@
     .no-scrollbar { scrollbar-width: none; }
     .no-scrollbar::-webkit-scrollbar { display: none; }
 
-    /* Fade all four edges to transparent, so a layer blends into the page with no visible border */
+    /*
+     * The landing page's 次 window: no hard edges, and its left side (where the
+     * headline crosses it) stays dim, so the covers come up to full brightness
+     * only to the right of the text.
+     */
     .fade-edges {
         mask-image:
-            linear-gradient(to right, transparent, #000 14%),
+            linear-gradient(to right, transparent, rgb(0 0 0 / 0.3) 24%, #000 46%),
             linear-gradient(to bottom, #000 82%, transparent);
         mask-composite: intersect;
     }

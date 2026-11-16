@@ -16,7 +16,7 @@ import Reveal from '../components/ui/Reveal';
 import { useAuth } from '../auth/useAuth';
 import { useShowcase } from '../utils/showcase';
 
-const HEADLINE = ['Your', 'next', 'favourite', 'anime'];
+const HEADLINE_LINES = [['Your', 'next'], ['favourite', 'anime']];
 const HEADLINE_ACCENT = ['is', 'already', 'waiting.'];
 
 // The kinds of reason the app really gives, cycling under the hero buttons
@@ -164,29 +164,27 @@ const Landing = () => {
                         initial="hidden"
                         animate="show"
                         transition={{ staggerChildren: 0.08, delayChildren: 0.15 }}
-                        className="max-w-3xl text-5xl font-bold leading-[0.95] tracking-tight sm:text-7xl lg:text-[5.5rem]"
+                        className="text-[8.6vw] font-bold leading-[0.95] tracking-tight sm:text-[8vw] lg:text-[clamp(4rem,6vw,5.5rem)]"
                     >
-                        {HEADLINE.map((w) => (
-                            <motion.span
-                                key={w}
-                                variants={word}
-                                // A soft dark shadow keeps white words readable where they touch the art
-                                className="-mb-[0.14em] mr-[0.22em] inline-block pb-[0.14em] [text-shadow:0_4px_28px_rgb(11_6_20/0.95)]"
-                            >
-                                {w}
-                            </motion.span>
+                        {/* Three fixed lines; nowrap keeps each one whole at any zoom */}
+                        {HEADLINE_LINES.map((line) => (
+                            <span key={line.join(' ')} className="block whitespace-nowrap">
+                                {line.map((w) => (
+                                    <motion.span
+                                        key={w}
+                                        variants={word}
+                                        // A soft dark shadow keeps white words readable where they touch the art
+                                        className="-mb-[0.14em] mr-[0.22em] inline-block pb-[0.14em] [text-shadow:0_4px_28px_rgb(11_6_20/0.95)]"
+                                    >
+                                        {w}
+                                    </motion.span>
+                                ))}
+                            </span>
                         ))}
-                        <br />
-                        {/* The last line sits on a slanted ink band, like an episode title card,
-                            so it stays readable where it crosses the 次 and its covers */}
-                        <span className="relative isolate mt-[0.1em] inline-block px-[0.2em]">
-                            <motion.span
-                                aria-hidden="true"
-                                initial={{ scaleX: 0 }}
-                                animate={{ scaleX: 1 }}
-                                transition={{ delay: 0.35, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-                                className="absolute inset-x-0 inset-y-[0.02em] -z-10 origin-left -skew-x-12 border-l-[6px] border-pink-500 bg-ink/80 shadow-2xl shadow-black/60 backdrop-blur-[3px]"
-                            />
+                        {/* The last line can cross the 次 and its covers. Each letter gets a tight
+                            dark halo (drop-shadow follows the glyph shapes, not a box) so the
+                            gradient stays readable over busy art, like an anime title card. */}
+                        <span className="block whitespace-nowrap [filter:drop-shadow(0_0_1px_rgb(11_6_20))_drop-shadow(0_0_6px_rgb(11_6_20/0.95))_drop-shadow(0_0_18px_rgb(11_6_20/0.8))]">
                             {HEADLINE_ACCENT.map((w, i) => (
                                 <motion.span
                                     key={w}
