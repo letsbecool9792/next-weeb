@@ -5,7 +5,6 @@ import { ArrowRight, Check, Sparkles, X } from 'lucide-react';
 
 import Footer from '../components/Footer';
 import Logo from '../components/brand/Logo';
-import PixelHeart from '../components/brand/PixelHeart';
 import Poster from '../components/Poster';
 import PosterWall from '../components/ui/PosterWall';
 import HoloCard from '../components/ui/HoloCard';
@@ -151,15 +150,6 @@ const Landing = () => {
                 </motion.p>
 
                 <motion.div style={{ opacity: heroFade }} className="relative z-10 w-full px-6 pb-28 pt-28 sm:px-12 lg:pl-24">
-                    <motion.p
-                        initial={{ opacity: 0, y: 16 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6 }}
-                        className="chip mb-7 px-3.5 py-1.5 text-sm"
-                    >
-                        <PixelHeart className="h-3.5 w-3.5" /> Built on your MyAnimeList
-                    </motion.p>
-
                     <motion.h1
                         initial="hidden"
                         animate="show"
