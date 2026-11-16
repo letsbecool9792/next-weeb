@@ -103,7 +103,7 @@ const Landing = () => {
             >
                 <motion.div
                     style={{ x: kanjiX, y: kanjiY, scale: kanjiScale }}
-                    className="fade-edges absolute inset-y-0 -right-[10%] w-[120%] opacity-45 lg:right-[-6%] lg:w-[68%] lg:opacity-100"
+                    className="fade-edges absolute inset-y-0 -right-[10%] w-[120%] opacity-45 lg:right-[-10%] lg:w-[68%] lg:opacity-100"
                 >
                     {/* The covers show only inside the kanji: a dark layer multiplied over
                         them hides everything except where the white glyph is */}
@@ -167,12 +167,36 @@ const Landing = () => {
                         className="max-w-3xl text-5xl font-bold leading-[0.95] tracking-tight sm:text-7xl lg:text-[5.5rem]"
                     >
                         {HEADLINE.map((w) => (
-                            <motion.span key={w} variants={word} className="-mb-[0.14em] mr-[0.22em] inline-block pb-[0.14em]">{w}</motion.span>
+                            <motion.span
+                                key={w}
+                                variants={word}
+                                // A soft dark shadow keeps white words readable where they touch the art
+                                className="-mb-[0.14em] mr-[0.22em] inline-block pb-[0.14em] [text-shadow:0_4px_28px_rgb(11_6_20/0.95)]"
+                            >
+                                {w}
+                            </motion.span>
                         ))}
                         <br />
-                        {HEADLINE_ACCENT.map((w) => (
-                            <motion.span key={w} variants={word} className="-mb-[0.14em] mr-[0.22em] inline-block pb-[0.14em] text-gradient-animated">{w}</motion.span>
-                        ))}
+                        {/* The last line sits on a slanted ink band, like an episode title card,
+                            so it stays readable where it crosses the 次 and its covers */}
+                        <span className="relative isolate mt-[0.1em] inline-block px-[0.2em]">
+                            <motion.span
+                                aria-hidden="true"
+                                initial={{ scaleX: 0 }}
+                                animate={{ scaleX: 1 }}
+                                transition={{ delay: 0.35, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                                className="absolute inset-x-0 inset-y-[0.02em] -z-10 origin-left -skew-x-12 border-l-[6px] border-pink-500 bg-ink/80 shadow-2xl shadow-black/60 backdrop-blur-[3px]"
+                            />
+                            {HEADLINE_ACCENT.map((w, i) => (
+                                <motion.span
+                                    key={w}
+                                    variants={word}
+                                    className={`-mb-[0.14em] inline-block pb-[0.14em] text-gradient-animated ${i < HEADLINE_ACCENT.length - 1 ? 'mr-[0.22em]' : ''}`}
+                                >
+                                    {w}
+                                </motion.span>
+                            ))}
+                        </span>
                     </motion.h1>
 
                     <motion.p
