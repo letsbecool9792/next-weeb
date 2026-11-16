@@ -470,7 +470,7 @@ const Landing = () => {
             {/* ---------- Closing call to action ---------- */}
             <section className="px-4 py-24 sm:px-8">
                 <Reveal>
-                    <div className="relative mx-auto grid max-w-6xl items-center gap-10 overflow-hidden rounded-[2rem] border border-white/10 p-8 sm:p-14 lg:grid-cols-[1fr_auto]">
+                    <div className="relative isolate mx-auto grid max-w-6xl items-center gap-10 overflow-hidden rounded-[2rem] border border-white/10 p-8 sm:p-14 lg:grid-cols-[1fr_auto]">
                         <div className="absolute inset-0 -z-10 bg-gradient-to-br from-pink-600/35 via-purple-900/70 to-ink" />
                         <span className="kanji-outline pointer-events-none absolute -bottom-16 -left-6 -z-10 font-kanji text-[18rem] leading-none" aria-hidden="true">次</span>
                         <div>
